@@ -8,7 +8,7 @@ O objetivo é permitir que usuários organizem seus treinos, registrem séries e
 
 O projeto será desenvolvido incrementalmente, utilizando metodologias ágeis e dividido em sprints.
 
-**Status:** Sprint 2 implementada — gerenciamento de treinos.
+**Status:** Sprint 3 implementada — execução e persistência de sessões.
 
 ---
 
@@ -984,3 +984,121 @@ na inicialização, preservando as contas existentes.
 
 O teste de navegador foi executado com Playwright instalado temporariamente fora
 do repositório; a suíte versionada de regras de negócio está em `backend/tests`.
+
+
+# 15. Sprint 3 — Execução de treinos
+
+Implementa início, registro de séries em tempo real, salvamento automático,
+retomada, finalização e persistência das sessões. O dashboard mostra o treino em
+andamento, e a listagem de treinos concluídos dá acesso ao resumo de cada sessão.
+Cronômetro, comparação de desempenho e conquistas continuam nas Sprints 4 e 5.
+
+## Regras e decisões
+
+- Uma sessão em andamento por usuário. Repetir o início do mesmo plano retoma
+  a sessão existente; iniciar outro plano retorna 409 enquanto houver sessão ativa.
+  A criação bloqueia a linha do usuário e usa índice único parcial no PostgreSQL,
+  conforme a [documentação de índices](https://www.postgresql.org/docs/17/sql-createindex.html).
+- Só é possível iniciar um plano com pelo menos uma série. Exercícios e séries
+  são copiados com IDs próprios, nome e ordem. Editar o plano não muda a sessão;
+  excluir o plano apenas remove sua referência, mantendo o snapshot e o histórico.
+- Edição, exclusão e cópia do plano usam bloqueio da linha do treino para manter
+  a leitura do snapshot consistente com atualizações simultâneas.
+- Durante a execução é possível alterar carga, repetições e tipo, adicionar ou
+  remover séries e marcar conclusão. Os exercícios copiados permanecem na ordem
+  original. Cada exercício aceita até 60 séries na sessão.
+- Cargas usam `NUMERIC(7,2)` e são opcionais enquanto a série está pendente.
+  Para concluir uma série é necessário informar carga não negativa (zero para peso
+  corporal). Repetições executadas são inteiras entre 0 e 999, permitindo registrar
+  uma tentativa sem repetição completa.
+- O backend salva a sessão inteira em uma transação e incrementa `revision`.
+  Revisões antigas recebem 409 para evitar que outra aba sobrescreva os registros.
+  Um `mutation_id` identifica o último salvamento e permite repetir uma requisição
+  cuja resposta foi perdida, sem duplicar séries. Os IDs das novas séries são UUIDs
+  gerados pelo cliente e validados pelo backend.
+- A interface salva após 500 ms sem edição e indica se há alterações pendentes,
+  erro, conflito ou confirmação do banco. Em falhas, permite tentar novamente e
+  tenta reenviar ao recuperar a conexão. A finalização aguarda o salvamento.
+- Um rascunho por usuário e sessão fica no `localStorage` para recuperar alterações
+  ainda não confirmadas após recarga. O rascunho não contém token ou senha.
+  Se o armazenamento local estiver bloqueado, a interface avisa para aguardar o
+  salvamento antes de sair. Esse mecanismo não torna o aplicativo totalmente offline:
+  a interface e a sessão precisam ser carregadas com conexão.
+- Em conflito de revisão o rascunho não é sobrescrito automaticamente. A interface
+  solicita confirmação para descartá-lo e carregar os dados atuais do servidor.
+- Finalizar exige pelo menos uma série concluída e confirmação. Séries pendentes
+  permanecem registradas como não concluídas. O backend define término, duração e
+  quantidade de séries concluídas; sessões encerradas não podem ser editadas.
+- Descartar também exige confirmação na interface. A sessão recebe status `discarded`
+  e fica fora da listagem de treinos concluídos. O descarte não altera o plano.
+- Finalizar e descartar novamente a mesma sessão são operações idempotentes.
+  O histórico básico é paginado, com até 100 registros por requisição.
+- Todos os endpoints verificam o usuário autenticado e as escritas exigem o mesmo
+  cabeçalho de segurança das sprints anteriores. Dados de outras contas retornam 404.
+
+## Estrutura
+
+- `backend/app/models/session.py`: sessões, exercícios copiados e séries executadas.
+- `backend/app/schemas/session.py`: contratos de início, edição, encerramento e leitura.
+- `backend/app/services/session.py`: snapshot, revisão, idempotência e finalização.
+- `backend/app/api/sessions.py`: API autenticada.
+- `backend/alembic/versions/0003_workout_sessions.py`: tabelas, índices e constraints.
+- `backend/tests/test_sessions.py`: regras da execução e isolamento de dados.
+- `frontend/src/hooks/useWorkoutSession.ts`: fila de salvamento e recuperação do rascunho.
+- `frontend/src/pages/SessionPage.tsx`: execução e resumo somente leitura.
+- `frontend/src/pages/HistoryPage.tsx`: listagem básica de sessões concluídas.
+
+## API
+
+| Método | Endpoint | Comportamento |
+|---|---|---|
+| POST | `/api/sessions` | Inicia ou retoma com `workout_template_id` |
+| GET | `/api/sessions/active` | Retorna a sessão ativa ou `null` |
+| GET | `/api/sessions?offset=0&limit=20` | Lista sessões concluídas do usuário |
+| GET | `/api/sessions/{id}` | Recupera snapshot e andamento ou resumo final |
+| PUT | `/api/sessions/{id}` | Salva séries com revisão e identificador da alteração |
+| POST | `/api/sessions/{id}/finish` | Finaliza usando `revision` |
+| POST | `/api/sessions/{id}/discard` | Descarta usando `revision` |
+
+No PUT, envie somente `revision`, `mutation_id` (UUID novo por alteração) e
+`exercises`, mantendo a ordem e os IDs dos exercícios da sessão. Cada exercício
+contém `id` e `sets`. Cada série contém `id` (UUID), `set_type`, `weight`,
+`repetitions` e `is_completed`. IDs conhecidos são mantidos, IDs novos criam séries,
+e séries omitidas são removidas. Para repetir um envio sem resposta, mantenha
+exatamente o mesmo corpo e `mutation_id`.
+
+## Execução
+
+```bash
+docker compose up --build -d
+docker compose exec backend alembic current
+# 0003 (head)
+docker compose exec backend alembic check
+docker compose run --rm --no-deps -v "$PWD/backend/tests:/app/tests:ro" backend sh -c 'pip install ".[test]" --quiet && pytest tests -q'
+cd frontend
+npm run build
+```
+
+Em http://localhost:5174, crie um plano, selecione **Iniciar treino**, registre as
+séries e aguarde **Tudo salvo no banco**. Ao voltar à tela inicial, use **Retomar treino**.
+Depois de finalizar, o resumo fica disponível em **Treinos concluídos**.
+
+
+## Validação executada na Sprint 3
+
+- 59 testes de backend aprovados, com regressão das Sprints 0, 1 e 2, chaves
+  estrangeiras habilitadas no banco isolado e casos de duração e imutabilidade.
+- Build TypeScript/Vite aprovado localmente e na imagem Docker.
+- PostgreSQL em `0003 (head)`; `alembic check` não encontrou divergências dos modelos.
+- Oito inícios simultâneos retornaram a mesma sessão. Duas gravações simultâneas
+  com a mesma revisão resultaram em uma confirmação e um conflito HTTP 409.
+- Fluxo automatizado em Chromium: início, conclusão de séries, edição de carga,
+  tipo e repetições, adição/remoção, autosave, recarga, retomada, confirmação de
+  finalização, resumo, histórico após excluir o plano e descarte confirmado.
+- Falhas simuladas: resposta perdida após salvar no servidor, rede indisponível
+  durante o salvamento e conflito com alteração remota. O rascunho foi recuperado
+  após recarga e a alteração remota não foi sobrescrita silenciosamente.
+- Tela de execução verificada em 320, 360, 768 e 1280 px, sem rolagem horizontal
+  ou erros JavaScript capturados. O Playwright foi usado temporariamente fora do
+  repositório; os testes versionados estão em `backend/tests/test_sessions.py`.
+- As duas contas temporárias criadas para validar esta sprint foram removidas.

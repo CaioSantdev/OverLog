@@ -20,6 +20,8 @@ ACCOUNT = {'name': 'Caio', 'email': 'caio@example.com', 'password': 'strong-pass
 @pytest.fixture
 def client():
     engine = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
+    with engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
     Base.metadata.create_all(engine)
     with Session(engine) as db:
         app.dependency_overrides[get_db] = lambda: db

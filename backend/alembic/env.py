@@ -7,6 +7,8 @@ from app.db.session import Base
 from app.models.user import User  # noqa: F401 — register model metadata
 from app.models.workout import WorkoutTemplate, TemplateExercise, PlannedSet  # noqa: F401
 
+from app.models.session import WorkoutSession, SessionExercise, PerformedSet  # noqa: F401
+
 target_metadata = Base.metadata
 
 

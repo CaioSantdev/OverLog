@@ -13,8 +13,11 @@ def query_workouts(user_id: str):
     )
 
 
-def get_workout(db: Session, user_id: str, workout_id: str):
-    workout = db.scalar(query_workouts(user_id).where(WorkoutTemplate.id == workout_id))
+def get_workout(db: Session, user_id: str, workout_id: str, lock=False):
+    query = query_workouts(user_id).where(WorkoutTemplate.id == workout_id)
+    if lock:
+        query = query.with_for_update()
+    workout = db.scalar(query)
     if workout is None:
         raise HTTPException(404, "Treino não encontrado.")
     return workout

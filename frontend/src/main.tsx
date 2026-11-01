@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, Link } from 'react-rout
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './pages/AuthPage';
 import { WorkoutEditor } from './pages/WorkoutEditor';
+import { SessionPage } from './pages/SessionPage';
+import { HistoryPage } from './pages/HistoryPage';
 import { Dashboard } from './pages/Dashboard';
 import './styles/global.css';
 
@@ -19,7 +21,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<AuthPage key="login" />} />
         <Route path="/cadastro" element={<AuthPage key="register" register />} />
-        <Route element={<Protected />}><Route path="/" element={<Dashboard />} /><Route path="/treinos/novo" element={<WorkoutEditor key="new" />} /><Route path="/treinos/:id" element={<WorkoutEditor />} /></Route>
+        <Route element={<Protected />}><Route path="/" element={<Dashboard />} /><Route path="/treinos/novo" element={<WorkoutEditor key="new" />} /><Route path="/treinos/:id" element={<WorkoutEditor />} /><Route path="/sessoes/:id" element={<SessionPage />} /><Route path="/historico" element={<HistoryPage />} /></Route>
         <Route path="*" element={<section className="card"><h2>Página não encontrada</h2><Link to="/">Voltar ao início</Link></section>} />
       </Routes>}
     <footer><span>OverLog © {new Date().getFullYear()}</span><span>Um treino de cada vez.</span></footer>

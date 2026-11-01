@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { RestTimer, clearRestTimer } from '../components/RestTimer';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkoutSession } from '../hooks/useWorkoutSession';
 import { duration, type DraftSet } from '../types/session';
@@ -11,6 +12,9 @@ export function SessionPage() {
   const state = useWorkoutSession(id, user!.id);
   const { session, draft, loading, status, error, localWarning, closing, change, flush, close, reload } = state;
   const [confirm, setConfirm] = useState<'finish' | 'discard' | null>(null);
+  useEffect(() => {
+    if (session && session.status !== 'in_progress') clearRestTimer(user!.id, session.id);
+  }, [session?.id, session?.status, user?.id]);
   if (loading) return <section className="workouts-page" role="status">Recuperando seu treino…</section>;
   if (!session) return <section className="workouts-page"><p role="alert">{error}</p><button onClick={() => void reload()}>Tentar novamente</button><Link to="/">Meus treinos</Link></section>;
   const completed = draft.reduce((sum, ex) => sum + ex.sets.filter(set => set.is_completed).length, 0);
@@ -30,6 +34,7 @@ export function SessionPage() {
   return <section className="workouts-page editor session-page">
     <Link to="/">← Meus treinos (continuar depois)</Link><p className="eyebrow">TREINO EM ANDAMENTO</p><h1 className="page-title">{session.name_snapshot}<span>.</span></h1>
     <p className="description">{completed} de {total} séries concluídas · Início às {new Date(session.started_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+    <RestTimer key={`${user!.id}:${session.id}`} userId={user!.id} sessionId={session.id} disabled={closing} />
     <div className={`save-status ${status}`} role="status">{statuses[status]}</div>
     {localWarning && <p className="error" role="status">{localWarning}</p>}
     {error && <div className="notice" role="alert"><p>{error}</p>{status === 'conflict' ? <button type="button" className="secondary" onClick={() => { if (window.confirm('Descartar o rascunho local e carregar os dados salvos no servidor?')) void reload(true); }}>Carregar dados do servidor</button> : <button type="button" className="secondary" onClick={() => void flush()}>Tentar salvar novamente</button>}</div>}

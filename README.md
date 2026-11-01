@@ -8,7 +8,7 @@ O objetivo é permitir que usuários organizem seus treinos, registrem séries e
 
 O projeto será desenvolvido incrementalmente, utilizando metodologias ágeis e dividido em sprints.
 
-**Status:** Sprint 3 implementada — execução e persistência de sessões.
+**Status:** Sprint 4 implementada — cronômetro de descanso.
 
 ---
 
@@ -1136,3 +1136,71 @@ Os testes iniciam o Vite na porta 5175. O arquivo de configuração é
 Validação desta correção: três testes Playwright aprovados, build local e Docker
 aprovados e duas sessões reais consecutivas finalizadas com PostgreSQL, incluindo
 carga com vírgula e carga zero. As contas temporárias foram removidas.
+
+
+# 16. Sprint 4 — Cronômetro de descanso
+
+A tela de sessão em andamento inclui um relógio com contagem crescente e controles
+**Iniciar descanso**, **Pausar descanso**, **Retomar descanso** e **Reiniciar descanso**.
+O reinício zera o tempo e mantém o estado: se estava contando, continua contando;
+se estava pausado, continua parado. A contagem exibe minutos e segundos e inclui
+horas quando necessário. O cronômetro é manual, sem iniciar ao concluir uma série.
+
+## Implementação e decisões
+
+- `frontend/src/components/RestTimer.tsx` mantém o tempo acumulado e o timestamp
+  de início. O intervalo só atualiza a exibição; o tempo é calculado pela diferença
+  de timestamps, sem depender da execução de um callback a cada segundo.
+- Ao retornar à aba, janela ou página, o visor é atualizado. Assim, atrasos dos
+  timers durante suspensão ou troca de aplicativo não removem o tempo transcorrido.
+- O estado é guardado no `localStorage` por usuário e sessão e recuperado ao
+  recarregar ou retomar o treino no mesmo navegador. Abas do mesmo navegador
+  recebem alterações pelo evento `storage`. O último controle acionado prevalece.
+- Finalizar ou descartar a sessão remove o descanso local. Uma nova sessão
+  começa zerada. O cronômetro não altera séries, plano, revisão ou duração da sessão.
+- Não há nova tabela, endpoint ou migration: o descanso é uma ferramenta local,
+  sem sincronização entre dispositivos. Se o armazenamento estiver indisponível,
+  a contagem funciona na tela atual e um aviso informa a limitação de recuperação.
+- A referência é o relógio do dispositivo; mudanças manuais nesse relógio podem
+  alterar a contagem. O sistema evita exibir tempo negativo caso o relógio retroceda.
+- O visor não anuncia cada segundo ao leitor de tela; os controles têm nomes
+  explícitos, área de toque adequada e layout responsivo.
+
+## Testes e execução
+
+Os testes em `frontend/tests/rest-timer.spec.ts` usam o
+[relógio controlado do Playwright](https://playwright.dev/docs/clock) para simular
+pausa, retomada, reinício, suspensão, recarga, troca de página, encerramento e
+falha de armazenamento. A API simulada compartilhada está em
+`frontend/tests/helpers/sessionApi.ts`.
+
+```bash
+cd frontend
+npm ci
+npx playwright install chromium
+npm run test:e2e
+npm run build
+```
+
+Para atualizar o ambiente:
+
+```bash
+docker compose up --build -d
+```
+
+Acesse http://localhost:5174, inicie ou retome um treino e use o cartão **Descanso**.
+O cronômetro só aparece em sessões em andamento.
+
+
+## Validação executada na Sprint 4
+
+- Oito testes Playwright aprovados: cinco do cronômetro e três de regressão das sessões.
+- Build TypeScript/Vite aprovado localmente e no Docker.
+- Suspensão simulada com avanço de tempo sem executar cada tick intermediário:
+  a contagem recuperou corretamente minutos e horas transcorridos.
+- Início, pausa, retomada, reinício, recarga, navegação, encerramento e falha de
+  armazenamento cobertos por testes. Controles verificados de 320 a 1280 px.
+- Integração com PostgreSQL validada em uma sessão temporária: descanso preservado
+  após recarga, carga e conclusão de série salvas, e treino finalizado normalmente.
+- A conta temporária da validação foi removida. A suspensão foi simulada em Chromium;
+  o bloqueio físico da tela em Android/iOS não foi testado nesta entrega.

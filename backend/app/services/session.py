@@ -6,6 +6,7 @@ from app.models.session import PerformedSet, SessionExercise, WorkoutSession
 from app.models.user import User
 from app.models.workout import now
 from app.schemas.session import SessionUpdate
+from app.services.progression import build_report
 from app.services.workout import get_workout
 
 
@@ -90,5 +91,7 @@ def close_session(db: Session, session: WorkoutSession, revision: int, status: s
         raise HTTPException(422, "Conclua pelo menos uma série antes de finalizar o treino.")
     session.status, session.finished_at = status, now()
     session.revision += 1
+    if status == "completed":
+        session.progression_snapshot = build_report(db, session).model_dump(mode="json")
     db.commit()
     return get_session(db, session.user_id, session.id)

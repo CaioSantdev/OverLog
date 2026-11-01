@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ProgressionPanel } from '../components/ProgressionPanel';
 import { RestTimer, clearRestTimer } from '../components/RestTimer';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkoutSession } from '../hooks/useWorkoutSession';
@@ -27,6 +28,8 @@ export function SessionPage() {
     <h1 className="page-title">{session.name_snapshot}<span>.</span></h1>
     <div className="session-stats"><div><strong>{session.completed_sets}</strong><span>Séries concluídas</span></div><div><strong>{duration(session.duration_seconds)}</strong><span>Duração</span></div></div>
     <p className="hint">Início: {new Date(session.started_at).toLocaleString('pt-BR')}<br />Término: {session.finished_at && new Date(session.finished_at).toLocaleString('pt-BR')}</p>
+    {session.status === 'completed' && <ProgressionPanel key={session.id} sessionId={session.id} />}
+    <h2>Registro detalhado</h2>
     {session.exercises.map(ex => <section className="exercise-card summary-exercise" key={ex.id}><h2>{ex.name_snapshot}</h2>{ex.sets.map((set, index) => <p className={set.is_completed ? '' : 'hint'} key={set.id}>Série {index + 1} · {SET_TYPES[set.set_type]} · {set.weight ?? '—'} kg × {set.repetitions} rep. · {set.is_completed ? 'Concluída' : 'Não concluída'}</p>)}</section>)}
     <Link className="action" to="/">Voltar aos meus treinos</Link>
   </section>;

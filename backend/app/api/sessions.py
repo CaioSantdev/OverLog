@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import HTTPException, APIRouter, Depends, Query, Response
 
 from app.api.dependencies import CurrentUser, Database, require_same_origin_header
+from app.schemas.progression import ProgressionReport
+from app.services.progression import session_report
 from app.models.session import WorkoutSession
 from app.schemas.session import SessionAction, SessionPublic, SessionStart, SessionSummary, SessionUpdate
 from app.services.session import close_session, get_session, session_query, start_session, update_session
@@ -46,3 +48,12 @@ def finish(session_id: str, data: SessionAction, user: CurrentUser, db: Database
 @router.post("/{session_id}/discard", response_model=SessionPublic, dependencies=writes)
 def discard(session_id: str, data: SessionAction, user: CurrentUser, db: Database):
     return close_session(db, get_session(db, user.id, session_id, lock=True), data.revision, "discarded")
+
+
+@router.get("/{session_id}/progression", response_model=ProgressionReport)
+def progression(session_id: str, user: CurrentUser, db: Database, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    session = get_session(db, user.id, session_id)
+    if session.status != "completed":
+        raise HTTPException(409, "A comparação fica disponível após finalizar o treino.")
+    return session_report(db, session)

@@ -74,6 +74,8 @@ class SessionSummary(BaseModel):
     duration_seconds: int | None
     completed_sets: int
     revision: int
+    weight_progressions: int | None = None
+    repetition_progressions: int | None = None
 
 
 class SessionPublic(SessionSummary):

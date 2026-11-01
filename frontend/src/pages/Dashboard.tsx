@@ -35,7 +35,7 @@ export function Dashboard() {
   }
   return <section className="workouts-page">
     <div className="page-heading"><div><p className="eyebrow">SUA ROTINA, SUA EVOLUÇÃO</p><h1 className="page-title">Meus treinos<span>.</span></h1><p className="description">Olá, {user?.name}. Prepare seu próximo treino.</p></div><button className="secondary small" onClick={leave} disabled={busy}>{busy ? 'Saindo…' : 'Sair'}</button></div>
-    <nav className="workout-nav"><Link to="/historico">Treinos concluídos ↗</Link></nav>
+    <nav className="workout-nav"><Link to="/historico">Treinos concluídos ↗</Link><Link to="/evolucao">Evolução e conquistas ↗</Link></nav>
     {activeSession && <aside className="active-session"><div><p className="eyebrow">TREINO EM ANDAMENTO</p><h2>{activeSession.name_snapshot}</h2><p>{activeSession.completed_sets} séries concluídas</p></div><Link className="action" to={`/sessoes/${activeSession.id}`}>Retomar treino</Link></aside>}
     {error && <div className="notice" role="alert"><p>{error}</p><button className="secondary" onClick={() => setAttempt(n => n + 1)}>Tentar novamente</button></div>}
     {loading ? <p role="status">Carregando treinos…</p> : <>

@@ -8,7 +8,7 @@ O objetivo é permitir que usuários organizem seus treinos, registrem séries e
 
 O projeto será desenvolvido incrementalmente, utilizando metodologias ágeis e dividido em sprints.
 
-**Status:** Sprint 4 implementada — cronômetro de descanso.
+**Status:** Sprint 5 implementada — evolução e conquistas.
 
 ---
 
@@ -354,7 +354,7 @@ Resultado:
 
 🏆 **Progressão de carga!**
 
-A comparação deverá considerar séries equivalentes. Os critérios definitivos, incluindo comparação entre diferentes tipos de série, serão definidos na sprint correspondente.
+A comparação deverá considerar séries equivalentes. Os critérios da Sprint 5 estão definidos na seção 17; tipos diferentes não são comparados.
 
 ## RF10 — Conquistas
 
@@ -1204,3 +1204,95 @@ O cronômetro só aparece em sessões em andamento.
   após recarga, carga e conclusão de série salvas, e treino finalizado normalmente.
 - A conta temporária da validação foi removida. A suspensão foi simulada em Chromium;
   o bloqueio físico da tela em Android/iOS não foi testado nesta entrega.
+
+
+# 17. Sprint 5 — Evolução e conquistas
+
+## Critérios de comparação (versão 1)
+
+- Compara somente sessões concluídas do próprio usuário. A referência é a sessão
+  concluída mais recente antes do início da sessão atual que contenha o exercício.
+  Exercícios podem estar em planos diferentes.
+- Identifica o exercício pelo nome do snapshot, ignorando diferenças de maiúsculas
+  e espaços repetidos/externos. Alterações de nome significam exercícios distintos.
+  Se o nome ocorrer mais de uma vez na sessão atual ou de referência, a comparação
+  desse exercício é omitida para evitar pareamento ambíguo.
+- Compara apenas `work`, `backoff` e `failure`. Aquecimento e feeder não geram conquistas.
+  Pareia o mesmo tipo pela ordem dentro desse tipo, contando também as séries
+  pendentes na ordenação para não deslocar as posições.
+- A série atual e a de referência precisam estar concluídas, ter carga informada
+  e pelo menos uma repetição. Séries novas sem equivalente não geram progressão.
+  Uma referência inválida não é substituída por uma sessão mais antiga.
+- **Progressão de carga:** carga maior e repetições iguais ou maiores.
+- **Progressão de repetições:** carga igual e mais repetições. Se carga e repetições
+  aumentarem juntas, registra apenas progressão de carga, evitando contagem dupla.
+- Reduzir carga ou repetições, trocar o tipo ou comparar séries não equivalentes
+  não gera conquista. Os cálculos usam decimais no backend.
+- Os indicadores significam progressão sobre a referência, não recorde absoluto
+  de toda a vida. A primeira sessão serve de base e não recebe conquista automática.
+- O relatório é salvo como snapshot na finalização, junto com a versão dos critérios,
+  valores anteriores e atuais. Repetir a finalização não duplica conquistas.
+  Relatórios legados sem snapshot são calculados na consulta, sem escrever no banco.
+
+
+## Implementação da Sprint 5
+
+- O resumo pós-treino apresenta indicadores de progressão e cartões com valores
+  anteriores e atuais, tipo e posição da série e link para a sessão de referência.
+- A tela **Evolução e conquistas**, acessível pelo dashboard, lista os resultados
+  por sessão. O histórico mantém os registros detalhados e o acesso aos resumos.
+  As listas são paginadas; os indicadores pertencem a cada sessão, não a um total global.
+- Ausência de referência, série não equivalente, nome duplicado e ausência de
+  progressão têm mensagens próprias; falhas de consulta permitem tentar novamente.
+- A migration `0004` adiciona `progression_snapshot` (JSON) à sessão e um índice
+  por usuário, status e término. Contas, planos e registros anteriores são preservados.
+- Relatórios novos são gravados na mesma transação da finalização. A área privada
+  não permite editar sessões encerradas. Excluir ou editar planos não altera conquistas.
+
+### API e arquivos
+
+`GET /api/sessions/{id}/progression` retorna a versão dos critérios, quantidade
+de progressões de carga e repetições, séries comparadas e a comparação por série.
+Exige autenticação, retorna 404 para outra conta e 409 para sessão não concluída.
+As respostas de sessão e histórico também incluem `weight_progressions` e
+`repetition_progressions`; esses campos são `null` em registros legados sem snapshot.
+O relatório legado pode ser consultado pelo endpoint de comparação.
+
+Arquivos principais:
+
+- `backend/app/services/progression.py`: seleção da referência e critérios decimais.
+- `backend/app/schemas/progression.py`: contrato do relatório.
+- `backend/alembic/versions/0004_progression_snapshot.py`: coluna e índice.
+- `backend/tests/test_progression.py`: critérios, persistência, idempotência e isolamento.
+- `frontend/src/components/ProgressionPanel.tsx`: conquistas e comparação visual.
+- `frontend/src/pages/HistoryPage.tsx`: histórico e área de evolução.
+- `frontend/tests/progression.spec.ts`: testes de interface e recuperação de erro.
+
+### Execução
+
+```bash
+docker compose up --build -d
+docker compose exec backend alembic current
+# 0004 (head)
+docker compose exec backend alembic check
+docker compose run --rm --no-deps -v "$PWD/backend/tests:/app/tests:ro" backend sh -c 'pip install ".[test]" --quiet && pytest tests -q'
+cd frontend
+npm run test:e2e
+npm run build
+```
+
+Acesse http://localhost:5174/evolucao para consultar as conquistas por sessão.
+Uma progressão válida aparece automaticamente após finalizar um treino.
+
+
+### Validação executada na Sprint 5
+
+- 73 testes de backend e 11 testes Playwright aprovados, incluindo regressões.
+- Build TypeScript/Vite aprovado localmente e no Docker.
+- PostgreSQL em `0004 (head)`, sem divergências detectadas por `alembic check`.
+- Três sessões reais: `60 kg × 8` serviu de base, `60 kg × 10` gerou progressão
+  de repetições e `65 kg × 10` gerou progressão de carga.
+- Resumo, link para a sessão de referência e persistência do relatório após excluir
+  o plano validados no navegador com PostgreSQL. Sem erros JavaScript capturados.
+- Cartões de comparação verificados de 320 a 1280 px, sem rolagem horizontal.
+- Conta temporária da validação removida após os testes.

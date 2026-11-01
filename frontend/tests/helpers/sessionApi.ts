@@ -26,6 +26,7 @@ export async function sessionApi(page: Page) {
     const id = path.split('/')[3];
     const session = sessions.get(id);
     if (!session) return respond({ detail: 'Sessão não encontrada.' }, 404);
+    if (path.endsWith('/progression')) return respond({ policy_version: 1, weight_progressions: 0, repetition_progressions: 0, compared_sets: 0, comparisons: [] });
     if (method === 'GET') return respond(session);
     if (method === 'PUT') {
       if (failNextSave) { failNextSave = false; return route.abort(); }

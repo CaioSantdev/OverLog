@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, JSON, Numeric, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -15,6 +15,7 @@ class WorkoutSession(Base):
         CheckConstraint("revision >= 0", name="ck_session_revision"),
         CheckConstraint("(status = 'in_progress' AND finished_at IS NULL) OR (status != 'in_progress' AND finished_at IS NOT NULL)", name="ck_session_finished"),
         CheckConstraint("finished_at IS NULL OR finished_at >= started_at", name="ck_session_times"),
+        Index("ix_session_user_status_finished", "user_id", "status", "finished_at"),
         Index("uq_session_active_user", "user_id", unique=True,
               postgresql_where=text("status = 'in_progress'"), sqlite_where=text("status = 'in_progress'")),
     )
@@ -26,8 +27,17 @@ class WorkoutSession(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revision: Mapped[int] = mapped_column(default=0, server_default="0")
+    progression_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     last_mutation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     exercises: Mapped[list["SessionExercise"]] = relationship(cascade="all, delete-orphan", order_by="SessionExercise.position", back_populates="session")
+
+    @property
+    def weight_progressions(self) -> int | None:
+        return self.progression_snapshot.get('weight_progressions', 0) if self.progression_snapshot else None
+
+    @property
+    def repetition_progressions(self) -> int | None:
+        return self.progression_snapshot.get('repetition_progressions', 0) if self.progression_snapshot else None
 
     @property
     def duration_seconds(self) -> int | None:

@@ -1361,3 +1361,11 @@ locais ao navegador. O MVP exige conexão para carregar dados e sincronizar regi
 
 A primeira versão do MVP está disponível localmente. A publicação HTTPS depende
 do servidor, domínio e certificado descritos em [docs/DEPLOY.md](docs/DEPLOY.md).
+
+
+## Ajuste de interface — Ações no topo da sessão
+
+As sessões em andamento oferecem **Salvar andamento**, **Descartar sessão** e
+**Finalizar treino** tanto no topo, antes do cronômetro, quanto no final dos exercícios.
+Os dois grupos compartilham o mesmo salvamento, validações e confirmações, e ficam
+bloqueados durante o encerramento ou em conflito de edição. O layout se adapta ao celular.

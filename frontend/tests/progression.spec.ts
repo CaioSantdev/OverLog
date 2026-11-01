@@ -13,7 +13,7 @@ test('mostra conquistas e comparação anterior/atual após finalizar', async ({
   await page.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click();
   await page.getByLabel('Carga (kg)', { exact: true }).fill('65');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).click();
+  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).first().click();
   await page.getByRole('button', { name: 'Sim, finalizar treino', exact: true }).click();
   await expect(page.getByText('Você evoluiu neste treino!', { exact: true })).toBeVisible();
   await expect(page.getByText('Progressão de carga', { exact: false })).toBeVisible();
@@ -35,7 +35,7 @@ test('primeira sessão informa ausência de base e permite tentar novamente apó
   await page.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click();
   await page.getByLabel('Carga (kg)', { exact: true }).fill('20');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).click();
+  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).first().click();
   await page.getByRole('button', { name: 'Sim, finalizar treino', exact: true }).click();
   await expect(page.getByText('Comparação indisponível.', { exact: true })).toBeVisible();
   fail = false;

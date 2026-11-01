@@ -34,9 +34,17 @@ export function SessionPage() {
     <Link className="action" to="/">Voltar aos meus treinos</Link>
   </section>;
   const statuses = { saved: 'Tudo salvo no banco', pending: 'Alterações pendentes…', saving: 'Salvando…', error: 'Não foi possível salvar', conflict: 'Conflito de edição', invalid: 'Confira os campos para salvar' };
+  function sessionActions(label: string) {
+    return <fieldset className="session-actions" aria-label={label} disabled={closing || status === 'conflict'}>
+      <button type="button" className="secondary" disabled={status === 'saving'} onClick={() => void flush()}>Salvar andamento</button>
+      <button type="button" className="danger" onClick={() => setConfirm('discard')}>Descartar sessão</button>
+      <button type="button" disabled={completed === 0 || status === 'invalid'} onClick={() => setConfirm('finish')}>Finalizar treino ↗</button>
+    </fieldset>;
+  }
   return <section className="workouts-page editor session-page">
     <Link to="/">← Meus treinos (continuar depois)</Link><p className="eyebrow">TREINO EM ANDAMENTO</p><h1 className="page-title">{session.name_snapshot}<span>.</span></h1>
     <p className="description">{completed} de {total} séries concluídas · Início às {new Date(session.started_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+    {sessionActions('Ações no topo da sessão')}
     <RestTimer key={`${user!.id}:${session.id}`} userId={user!.id} sessionId={session.id} disabled={closing} />
     <div className={`save-status ${status}`} role="status">{statuses[status]}</div>
     {localWarning && <p className="error" role="status">{localWarning}</p>}
@@ -56,9 +64,7 @@ export function SessionPage() {
         <button type="button" className="secondary" disabled={ex.sets.length >= 60} onClick={() => change(draft.map((item, i) => i === exIndex ? { ...item, sets: [...item.sets, { id: crypto.randomUUID(), position: item.sets.length, set_type: 'work', weight: '', repetitions: '10', is_completed: false }] } : item))}>+ Adicionar série</button>
       </section>)}
       <p className="hint">Informe zero para exercícios sem carga externa. Suas alterações não mudam o plano original.</p>
-      <button type="button" className="secondary" disabled={status === 'saving'} onClick={() => void flush()}>Salvar andamento</button>
-      <button type="button" disabled={completed === 0 || status === 'invalid'} onClick={() => setConfirm('finish')}>Finalizar treino ↗</button>
-      <button type="button" className="danger" onClick={() => setConfirm('discard')}>Descartar sessão</button>
+      {sessionActions('Ações no final da sessão')}
     </fieldset>
     {confirm && <div className="confirmation" role="alertdialog" aria-modal="true" aria-labelledby="confirm-session-title"><div className="confirmation-card"><h2 id="confirm-session-title">{confirm === 'finish' ? 'Finalizar este treino?' : 'Descartar esta sessão?'}</h2><p>{confirm === 'finish' ? `${completed} de ${total} séries concluídas. As séries pendentes serão registradas como não concluídas.` : 'Esta sessão será encerrada sem entrar no histórico de treinos concluídos.'}</p><button disabled={closing} onClick={() => { void close(confirm).then(() => setConfirm(null)); }}>{closing ? 'Aguarde…' : confirm === 'finish' ? 'Sim, finalizar treino' : 'Sim, descartar sessão'}</button><button className="secondary" disabled={closing} onClick={() => setConfirm(null)}>Continuar treino</button></div></div>}
   </section>;

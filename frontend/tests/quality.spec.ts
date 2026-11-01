@@ -29,7 +29,7 @@ test('timeout libera nova tentativa e mantém os dados pendentes da série', asy
   await page.getByLabel('Carga (kg)', { exact: true }).fill('42,5');
   await page.getByRole('checkbox').check();
   await page.route('**/api/sessions/session-1', route => route.request().method() === 'PUT' ? new Promise<void>(() => {}) : route.fallback());
-  await page.getByRole('button', { name: 'Salvar andamento', exact: true }).click();
+  await page.getByRole('button', { name: 'Salvar andamento', exact: true }).first().click();
   await expect(page.getByText('Salvando…', { exact: true })).toBeVisible();
   await page.clock.fastForward(16000);
   await expect(page.getByText('Não foi possível salvar', { exact: true })).toBeVisible();

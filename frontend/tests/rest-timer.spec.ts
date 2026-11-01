@@ -61,9 +61,9 @@ test('limpa o descanso ao finalizar e começa zerado na próxima sessão', async
   await page.clock.runFor(1000);
   await page.getByLabel('Carga (kg)', { exact: true }).fill('20,5');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Salvar andamento', exact: true }).click();
+  await page.getByRole('button', { name: 'Salvar andamento', exact: true }).first().click();
   await expect(page.getByText('Tudo salvo no banco', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).click();
+  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).first().click();
   await page.getByRole('button', { name: 'Sim, finalizar treino', exact: true }).click();
   await expect(page.getByText('TREINO CONCLUÍDO', { exact: true })).toBeVisible();
   await expect(page.getByRole('timer')).toHaveCount(0);
@@ -78,7 +78,7 @@ test('limpa o descanso após descarte confirmado', async ({ page }) => {
   await openSession(page);
   await page.getByRole('button', { name: 'Iniciar descanso', exact: true }).click();
   await page.clock.runFor(1000);
-  await page.getByRole('button', { name: 'Descartar sessão', exact: true }).click();
+  await page.getByRole('group', { name: 'Ações no final da sessão', exact: true }).getByRole('button', { name: 'Descartar sessão', exact: true }).click();
   await page.getByRole('button', { name: 'Sim, descartar sessão', exact: true }).click();
   await expect(page.getByText('SESSÃO DESCARTADA', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('overlog:rest:test-user:session-1'))).toBeNull();

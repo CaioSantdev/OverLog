@@ -22,6 +22,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally { setLoading(false); }
   }
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    const clear = () => setUser(null);
+    window.addEventListener('overlog:unauthorized', clear);
+    return () => window.removeEventListener('overlog:unauthorized', clear);
+  }, []);
   // Revalidate when returning to a tab: expiration or logout in another tab is reflected.
   useEffect(() => {
     const validate = () => { if (document.visibilityState === 'visible') void refresh(); };

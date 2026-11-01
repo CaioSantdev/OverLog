@@ -8,7 +8,7 @@ O objetivo é permitir que usuários organizem seus treinos, registrem séries e
 
 O projeto será desenvolvido incrementalmente, utilizando metodologias ágeis e dividido em sprints.
 
-**Status:** Sprint 1 implementada — usuários e autenticação JWT.
+**Status:** Sprint 2 implementada — gerenciamento de treinos.
 
 ---
 
@@ -878,3 +878,109 @@ A validação da migration e da integração usa o PostgreSQL do Compose.
 
 A validação do frontend nesta entrega cobre compilação e integração HTTP;
 a interação visual em navegador não foi automatizada.
+
+
+# 14. Sprint 2 — Gerenciamento de treinos
+
+A área privada agora lista os treinos do usuário e permite criar, editar e excluir
+planos. O editor permite adicionar, remover e reordenar exercícios e séries,
+selecionar os cinco tipos de série e editar carga e repetições. A exclusão de
+um treino pede confirmação. A execução de sessões continua reservada à Sprint 3.
+
+## Regras e decisões
+
+- Cada usuário tem até seis treinos. Criações bloqueiam a linha do usuário durante
+  a transação no PostgreSQL; seis posições possíveis, com constraint única por
+  usuário, também garantem o limite no banco. Uma posição excluída pode ser reutilizada.
+- O nome de treino e exercício é obrigatório, com até 100 caracteres, sem espaços
+  externos. Um plano pode ser salvo vazio para ser completado posteriormente.
+- Cada treino aceita até 100 exercícios e cada exercício até 30 séries planejadas.
+  Esses limites operacionais mantêm os formulários e payloads manejáveis.
+- Repetições são inteiras, de 1 a 999. A carga é opcional, de 0 a 99999,99 kg,
+  com até duas casas decimais, armazenada em `NUMERIC(7,2)`. A API serializa cargas
+  como strings decimais para preservar a precisão.
+- Tipos: `warmup` (Aquecimento), `feeder`, `work` (Work Set), `backoff` e `failure` (Falha).
+- A ordem das listas enviadas define a posição dos exercícios e séries a partir de zero.
+  A interface oferece botões subir/descer, sem depender de arrastar no celular.
+- `PUT` salva o plano inteiro em uma transação. IDs existentes devem pertencer ao
+  treino/exercício correspondente e não podem se repetir. Itens novos omitem o ID;
+  itens removidos da lista são excluídos. IDs dos itens mantidos são preservados.
+- Todas as consultas e alterações filtram o usuário autenticado. Recursos de outra
+  conta retornam 404, sem revelar sua existência. Escritas exigem o cabeçalho de segurança.
+- Os relacionamentos usam exclusão em cascata e remoção de órfãos, conforme a
+  [documentação de cascatas do SQLAlchemy](https://docs.sqlalchemy.org/en/20/orm/cascades.html).
+- Uma resposta 401 limpa a sessão na interface e leva o usuário à tela de login.
+
+## Arquivos principais
+
+- `backend/app/models/workout.py`: treinos, exercícios e séries planejadas.
+- `backend/app/schemas/workout.py`: contratos e validação dos planos.
+- `backend/app/services/workout.py`: propriedade, limite de treinos e atualização dos itens.
+- `backend/app/api/workouts.py`: endpoints autenticados.
+- `backend/alembic/versions/0002_workout_templates.py`: tabelas, índices e constraints.
+- `backend/tests/test_workouts.py`: testes de regras de negócio e permissões.
+- `frontend/src/pages/Dashboard.tsx`: listagem dos treinos.
+- `frontend/src/pages/WorkoutEditor.tsx`: criação e edição responsiva.
+- `frontend/src/types/workout.ts`: tipos e payloads do frontend.
+
+## API
+
+| Método | Endpoint | Comportamento |
+|---|---|---|
+| GET | `/api/workouts` | Lista somente os planos do usuário autenticado |
+| POST | `/api/workouts` | Cria plano; retorna 201 ou 409 ao atingir seis treinos |
+| GET | `/api/workouts/{id}` | Consulta um plano com exercícios e séries |
+| PUT | `/api/workouts/{id}` | Salva nome, exercícios, ordem e séries do plano |
+| DELETE | `/api/workouts/{id}` | Exclui o plano e seus itens; retorna 204 |
+
+Exemplo de criação (`Content-Type: application/json`, cookie de sessão e
+`X-Requested-With: OverLog`):
+
+```json
+{
+  "name": "Peito e tríceps",
+  "exercises": [
+    {
+      "name": "Supino reto",
+      "sets": [
+        {"set_type": "warmup", "target_repetitions": 15, "target_weight": "20.00"},
+        {"set_type": "work", "target_repetitions": 8, "target_weight": "60.50"}
+      ]
+    }
+  ]
+}
+```
+
+As respostas incluem IDs e posições. Para editar, envie apenas `name`, `exercises`,
+e os campos de cada item do exemplo, acrescentando os IDs dos itens existentes.
+Não envie campos de resposta como `position`, `created_at` e `updated_at`.
+
+## Execução e verificação
+
+```bash
+docker compose up --build -d
+docker compose exec backend alembic current
+# Deve retornar 0002 (head)
+docker compose run --rm --no-deps -v "$PWD/backend/tests:/app/tests:ro" backend sh -c 'pip install ".[test]" --quiet && pytest tests -q'
+cd frontend
+npm run build
+```
+
+Acesse http://localhost:5174 para montar seus treinos. No ambiente padrão sem
+alteração de porta, use http://localhost:5173. A migration é aplicada automaticamente
+na inicialização, preservando as contas existentes.
+
+## Validação executada na Sprint 2
+
+- 36 testes de backend aprovados, incluindo regressão da autenticação.
+- Build TypeScript/Vite aprovado localmente e no Docker.
+- Migration PostgreSQL em `0002 (head)`.
+- Oito criações HTTP simultâneas: seis retornaram 201 e duas retornaram 409.
+- Fluxo automatizado em Chromium: cadastro, criação, consulta, edição, reordenação
+  de exercícios e séries, remoção de itens, persistência após recarga e confirmação
+  de exclusão. Nenhum erro JavaScript capturado.
+- Editor verificado nas larguras de 320, 360, 768 e 1280 px, sem rolagem horizontal.
+- Contas temporárias de validação removidas após os testes.
+
+O teste de navegador foi executado com Playwright instalado temporariamente fora
+do repositório; a suíte versionada de regras de negócio está em `backend/tests`.

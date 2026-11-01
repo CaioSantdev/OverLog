@@ -5,6 +5,8 @@ from app.core.config import get_settings
 from app.db.session import Base
 
 from app.models.user import User  # noqa: F401 — register model metadata
+from app.models.workout import WorkoutTemplate, TemplateExercise, PlannedSet  # noqa: F401
+
 target_metadata = Base.metadata
 
 

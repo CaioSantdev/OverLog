@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../services/api';
-import { sessionDraft, validDraft, type DraftExercise, type WorkoutSession } from '../types/session';
+import { sessionDraft, validDraft, normalizedWeight, type DraftExercise, type WorkoutSession } from '../types/session';
 
 type SaveBody = { revision: number; mutation_id: string; exercises: { id: string; sets: { id: string; set_type: string; weight: string | null; repetitions: number; is_completed: boolean }[] }[] };
 type Pending = { body: SaveBody; generation: number };
@@ -90,7 +90,7 @@ export function useWorkoutSession(id: string, userId: string) {
       if (!validDraft(current.current)) { setStatus('invalid'); setError('Preencha repetições inteiras e cargas válidas. Séries concluídas precisam de carga (use zero para peso corporal).'); return false; }
       pending.current = { generation: generation.current, body: {
         revision: server.current.revision, mutation_id: crypto.randomUUID(),
-        exercises: current.current.map(ex => ({ id: ex.id, sets: ex.sets.map(set => ({ id: set.id, set_type: set.set_type, weight: set.weight || null, repetitions: Number(set.repetitions), is_completed: set.is_completed })) })),
+        exercises: current.current.map(ex => ({ id: ex.id, sets: ex.sets.map(set => ({ id: set.id, set_type: set.set_type, weight: set.weight.trim() ? normalizedWeight(set.weight) : null, repetitions: Number(set.repetitions), is_completed: set.is_completed })) })),
       } };
       persist();
     }

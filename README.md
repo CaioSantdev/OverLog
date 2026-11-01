@@ -1102,3 +1102,37 @@ Depois de finalizar, o resumo fica disponível em **Treinos concluídos**.
   ou erros JavaScript capturados. O Playwright foi usado temporariamente fora do
   repositório; os testes versionados estão em `backend/tests/test_sessions.py`.
 - As duas contas temporárias criadas para validar esta sprint foram removidas.
+
+
+## Correção após a Sprint 3 — Conclusão e salvamento das séries
+
+Foi reproduzido um bloqueio na interface ao iniciar planos sem carga planejada:
+como a carga da sessão começa vazia, a opção de concluir a série ficava desativada
+sem explicar o motivo junto ao campo. Duas sessões consecutivas funcionaram ao
+preencher a carga; não houve falha da API nesse cenário.
+
+- A conclusão deixa de ficar desativada silenciosamente. Marcar uma série sem
+  carga destaca a informação faltante e leva o foco ao campo; o salvamento da
+  conclusão continua exigindo carga explícita, inclusive zero para peso corporal.
+- Cargas digitadas com vírgula ou ponto são aceitas e normalizadas antes do envio.
+- O botão **Salvar andamento** permite solicitar o salvamento manual, mantendo
+  o autosave e seus indicadores. Séries pendentes podem continuar sem carga.
+- Foram adicionados testes de navegador versionados para duas sessões consecutivas,
+  carga inicialmente vazia, carga zero, decimais com vírgula e recuperação de falha de rede.
+
+Para executar esses testes (API simulada, sem alterar o banco):
+
+```bash
+cd frontend
+npm ci
+npx playwright install chromium
+npm run test:e2e
+npm run build
+```
+
+Os testes iniciam o Vite na porta 5175. O arquivo de configuração é
+`frontend/playwright.config.ts`, e os casos estão em `frontend/tests/session.spec.ts`.
+
+Validação desta correção: três testes Playwright aprovados, build local e Docker
+aprovados e duas sessões reais consecutivas finalizadas com PostgreSQL, incluindo
+carga com vírgula e carga zero. As contas temporárias foram removidas.

@@ -9,8 +9,11 @@ export type DraftExercise = Omit<SessionExercise, 'sets'> & { sets: DraftSet[] }
 export function sessionDraft(session: WorkoutSession): DraftExercise[] {
   return session.exercises.map(ex => ({ ...ex, sets: ex.sets.map(set => ({ ...set, repetitions: String(set.repetitions), weight: set.weight ?? '' })) }));
 }
+export function normalizedWeight(weight: string): string {
+  return weight.trim().replace(',', '.');
+}
 export function validDraft(draft: DraftExercise[]): boolean {
-  return draft.every(ex => ex.sets.every(set => /^\d{1,3}$/.test(set.repetitions) && (set.weight === '' ? !set.is_completed : /^\d{1,5}(\.\d{1,2})?$/.test(set.weight))));
+  return draft.every(ex => ex.sets.every(set => /^\d{1,3}$/.test(set.repetitions) && (set.weight.trim() === '' ? !set.is_completed : /^\d{1,5}(\.\d{1,2})?$/.test(normalizedWeight(set.weight)))));
 }
 export function duration(seconds: number | null): string {
   if (seconds === null) return 'Em andamento';

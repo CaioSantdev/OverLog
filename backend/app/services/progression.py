@@ -31,14 +31,15 @@ def build_report(db: Session, session: WorkoutSession) -> ProgressionReport:
             WorkoutSession.finished_at <= session.started_at,
         ).options(selectinload(WorkoutSession.exercises).selectinload(SessionExercise.sets)).order_by(
             WorkoutSession.finished_at.desc(), WorkoutSession.id.desc()).execution_options(yield_per=50)
-        for previous in db.scalars(query):
-            prior_counts = Counter(normalize_name(ex.name_snapshot) for ex in previous.exercises)
-            for exercise in previous.exercises:
-                name = normalize_name(exercise.name_snapshot)
-                if name in wanted and name not in baselines:
-                    baselines[name] = (previous.id, exercise, prior_counts[name] > 1)
-            if wanted <= baselines.keys():
-                break
+        with db.scalars(query) as previous_sessions:
+            for previous in previous_sessions:
+                prior_counts = Counter(normalize_name(ex.name_snapshot) for ex in previous.exercises)
+                for exercise in previous.exercises:
+                    name = normalize_name(exercise.name_snapshot)
+                    if name in wanted and name not in baselines:
+                        baselines[name] = (previous.id, exercise, prior_counts[name] > 1)
+                if wanted <= baselines.keys():
+                    break
     report = ProgressionReport()
     for exercise in session.exercises:
         name = normalize_name(exercise.name_snapshot)

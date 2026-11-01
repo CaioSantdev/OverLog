@@ -1,0 +1,47 @@
+# Isolated, disposable integration stack. Never point this at development/production data.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: overlog_test
+      POSTGRES_USER: overlog_test
+      POSTGRES_PASSWORD: integration-only-password
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U overlog_test -d overlog_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: overlog_test
+      POSTGRES_USER: overlog_test
+      POSTGRES_PASSWORD: integration-only-password
+      JWT_SECRET_KEY: integration-only-signing-key-at-least-32-characters
+      COOKIE_SECURE: 'false'
+      CORS_ORIGINS: '["http://127.0.0.1:${TEST_FRONTEND_PORT:-5180}","http://localhost:${TEST_FRONTEND_PORT:-5180}"]'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    ports:
+      - '127.0.0.1:${TEST_FRONTEND_PORT:-5180}:8080'
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

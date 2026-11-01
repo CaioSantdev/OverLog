@@ -8,7 +8,7 @@ O objetivo é permitir que usuários organizem seus treinos, registrem séries e
 
 O projeto será desenvolvido incrementalmente, utilizando metodologias ágeis e dividido em sprints.
 
-**Status:** Sprint 5 implementada — evolução e conquistas.
+**Status:** MVP 0.1 — Sprint 6 concluída e validada localmente.
 
 ---
 
@@ -1296,3 +1296,68 @@ Uma progressão válida aparece automaticamente após finalizar um treino.
   o plano validados no navegador com PostgreSQL. Sem erros JavaScript capturados.
 - Cartões de comparação verificados de 320 a 1280 px, sem rolagem horizontal.
 - Conta temporária da validação removida após os testes.
+
+
+# 18. Sprint 6 — Qualidade e MVP
+
+## Alterações
+
+- Revalidação de login em segundo plano preserva a tela atual ao retornar à aba,
+  inclusive com falha de rede. Respostas antigas não substituem a identidade atual.
+- Chamadas da interface têm timeout de 15 segundos, erro compreensível e nova
+  tentativa. Os testes verificam que o rascunho é preservado durante o timeout.
+- O backend rejeita origens não autorizadas nas escritas, impede cache de respostas
+  privadas e não repete senhas ou corpos de entrada nos erros de validação.
+  Falhas do banco retornam HTTP 503 com mensagem sanitizada.
+- O histórico agrega séries concluídas em uma consulta, sem carregar todas as
+  séries/exercícios. Um teste limita a quantidade de consultas SQL da listagem.
+  O cursor de busca das referências é fechado explicitamente.
+- O backend usa versões de execução fixadas em `backend/requirements.lock` e
+  roda como usuário sem privilégios. O frontend deixa de depender de fontes remotas.
+- A imagem do frontend tem targets `development` (Vite) e `production` (Nginx,
+  build estático, CSP, compressão, cache de assets e limite de tentativas de autenticação).
+- `compose.production.yaml` prepara a publicação atrás de um proxy HTTPS, com
+  cookies seguros, banco persistente e somente o frontend publicado em localhost.
+  Não houve deploy em domínio externo nesta sprint.
+- `compose.test.yaml` oferece PostgreSQL descartável e imagem estática para testes
+  de integração sem usar os dados de desenvolvimento.
+- A CI executa backend, auditorias, testes de interface e integração. Sua definição
+  foi adicionada ao repositório; a execução hospedada depende de um push ao GitHub.
+
+## Verificações
+
+- Backend: regras de negócio, JWT, logout, isolamento entre contas, IDs aninhados,
+  CSRF, origem, sanitização de erro, cache e quantidade de consultas do histórico.
+- Interface: perfis desktop e touch/mobile, séries, rascunho, falhas de rede,
+  timeout, cronômetro, evolução e preservação de edição ao retornar à aba.
+- Integração real: cadastro, login/logout, criar plano com exercício e série,
+  iniciar sessão, salvar, recarregar, retomar, usar descanso, finalizar, registrar
+  progressão, consultar histórico e negar acesso a outra conta.
+- Infraestrutura: frontend estático e API sem privilégios, migrations em PostgreSQL,
+  backup e restauração em banco separado e auditoria das dependências.
+
+Os comandos completos, configuração de produção, backup, restauração e limites
+conhecidos estão em [docs/DEPLOY.md](docs/DEPLOY.md).
+
+## Limites da validação
+
+A interface mobile foi validada em Chromium com viewport e touch emulados; aparelhos
+Android/iOS e Safari não foram testados fisicamente. A imagem estática foi validada
+localmente, sem certificado público ou DNS. O cronômetro e os rascunhos continuam
+locais ao navegador. O MVP exige conexão para carregar dados e sincronizar registros.
+
+
+## Resultado da Sprint 6
+
+- **77 testes de backend aprovados.**
+- **28 testes de interface aprovados** nos perfis desktop e mobile.
+- **2 testes de integração real aprovados**, com PostgreSQL, Nginx e fluxo completo.
+- Build local e Docker aprovados; API e frontend estático executados sem root.
+- Auditorias npm e Python sem vulnerabilidades conhecidas nesta execução.
+- Backup/restauração e ciclo completo das migrations validados em bancos descartáveis.
+- HTTP 429 com nova tentativa e HTTP 503 em JSON validados no proxy de produção.
+- Ambiente de desenvolvimento atualizado, preservando o volume existente; stack
+  e dados temporários de integração removidos depois da validação.
+
+A primeira versão do MVP está disponível localmente. A publicação HTTPS depende
+do servidor, domínio e certificado descritos em [docs/DEPLOY.md](docs/DEPLOY.md).

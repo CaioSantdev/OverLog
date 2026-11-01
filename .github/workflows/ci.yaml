@@ -1,0 +1,42 @@
+name: Verificação do MVP
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r backend/requirements.lock -e './backend[test]'
+      - run: python -m pytest backend/tests -q
+      - run: python -m pip install pip-audit && pip-audit -r backend/requirements.lock
+  frontend-and-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm audit --audit-level=high
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run build && npm run test:e2e
+        working-directory: frontend
+      - run: docker compose -p overlog-integration -f compose.test.yaml up --build -d --wait
+      - run: npm run test:integration
+        working-directory: frontend
+      - if: always()
+        run: docker compose -p overlog-integration -f compose.test.yaml down
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-playwright
+          path: frontend/test-results

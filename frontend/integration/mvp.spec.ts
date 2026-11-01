@@ -1,0 +1,68 @@
+import { test, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+
+test('fluxo real do cadastro à progressão, com isolamento de outra conta', async ({ page, browser, baseURL }) => {
+  const email = `mvp-${randomUUID()}@example.com`;
+  const password = randomUUID();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Criar conta', exact: true }).click();
+  await page.getByLabel('Nome', { exact: true }).fill('Pessoa de teste MVP');
+  await page.getByLabel('E-mail', { exact: true }).fill(email);
+  await page.getByLabel('Senha', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Criar conta', exact: true }).click();
+  await page.getByRole('link', { name: '+ Criar treino', exact: true }).click();
+  await page.getByLabel('Nome do treino', { exact: true }).fill('Treino MVP');
+  await page.getByRole('button', { name: '+ Adicionar exercício', exact: true }).click();
+  await page.getByLabel('Nome do exercício', { exact: true }).fill('Supino reto');
+  await page.getByLabel('Carga (kg)', { exact: true }).fill('60');
+  await page.getByLabel('Repetições', { exact: true }).fill('8');
+  await page.getByRole('button', { name: 'Salvar treino', exact: true }).click();
+  await page.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Iniciar descanso', exact: true })).toBeVisible();
+  const sessionURL = page.url();
+  await page.getByRole('button', { name: 'Iniciar descanso', exact: true }).click();
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Salvar andamento', exact: true }).click();
+  await expect(page.getByText('Tudo salvo no banco', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('checkbox')).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Pausar descanso', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '← Meus treinos (continuar depois)', exact: true }).click();
+  await page.getByRole('link', { name: 'Retomar treino', exact: true }).click();
+  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).click();
+  await page.getByRole('button', { name: 'Sim, finalizar treino', exact: true }).click();
+  await expect(page.getByText('Primeiro registro deste exercício', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Voltar aos meus treinos', exact: true }).click();
+  await page.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click();
+  await page.getByLabel('Carga (kg)', { exact: true }).fill('62,5');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).click();
+  await page.getByRole('button', { name: 'Sim, finalizar treino', exact: true }).click();
+  await expect(page.getByText('Você evoluiu neste treino!', { exact: true })).toBeVisible();
+  await expect(page.locator('.comparison-values')).toContainText('62,50 kg × 8');
+  await page.getByRole('link', { name: 'Voltar aos meus treinos', exact: true }).click();
+  await page.getByRole('link', { name: 'Treinos concluídos ↗', exact: true }).click();
+  await expect(page.locator('.workout-card')).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // Real login/logout and a second cookie jar must not access the first account's data.
+  await page.getByRole('link', { name: '← Meus treinos', exact: true }).click();
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await page.getByLabel('E-mail', { exact: true }).fill(email);
+  await page.getByLabel('Senha', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Meus treinos.' })).toBeVisible();
+  const other = await browser.newContext({ baseURL });
+  try {
+    const register = await other.request.post('/api/auth/register', { headers: { 'X-Requested-With': 'OverLog' }, data: { name: 'Outra pessoa', email: `mvp-other-${randomUUID()}@example.com`, password: randomUUID() } });
+    expect(register.status()).toBe(201);
+    const path = new URL(sessionURL).pathname.replace('/sessoes/', '/api/sessions/');
+    expect((await other.request.get(path)).status()).toBe(404);
+    expect(await (await other.request.get('/api/workouts')).json()).toEqual([]);
+  } finally { await other.close(); }
+  const response = await page.request.get('/api/workouts');
+  expect(response.headers()['cache-control']).toBe('no-store');
+  expect((await page.request.get('/')).headers()['content-security-policy']).toContain("frame-ancestors 'none'");
+  expect(errors).toEqual([]);
+});

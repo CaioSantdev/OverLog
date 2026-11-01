@@ -12,3 +12,5 @@ __pycache__/
 cookies.txt
 playwright-report/
 test-results/
+*.dump
+!.env.production.example

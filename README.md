@@ -1528,3 +1528,18 @@ vazio no gráfico. Os dados do gráfico também estão disponíveis para leitore
 Validação: 94 testes de backend, 38 testes de interface nos perfis desktop e celular,
 quatro testes de integração com PostgreSQL e frontend de produção, e build TypeScript/Vite.
 Os testes usam ambiente isolado, preservando os treinos e contas do ambiente local.
+
+## Testar no celular com ngrok
+
+Defina no `.env` o hostname fornecido pelo ngrok, sem protocolo ou barra final:
+
+```dotenv
+NGROK_HOST=uncubically-tinier-salina.ngrok-free.dev
+```
+
+Recrie os serviços com `docker compose up --build -d --wait` e execute
+`ngrok http 5174` (ou a porta configurada em `FRONTEND_PORT`). Abra a URL HTTPS
+no celular. O mesmo domínio atende a interface e `/api` pelo proxy do Vite;
+o hostname configurado é permitido no Vite e sua origem HTTPS é aceita pela API.
+Se o ngrok fornecer outro domínio, atualize `NGROK_HOST` e recrie os serviços.
+Deixe essa variável vazia quando não estiver usando o túnel.

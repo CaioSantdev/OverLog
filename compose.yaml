@@ -21,7 +21,7 @@ services:
       POSTGRES_HOST: db
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY no .env (minimo 32 caracteres)}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-5173}","http://127.0.0.1:${FRONTEND_PORT:-5173}"]'
+      CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-5173}","http://127.0.0.1:${FRONTEND_PORT:-5173}","https://${NGROK_HOST:-localhost}"]'
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -36,6 +36,8 @@ services:
     build:
       context: ./frontend
       target: development
+    environment:
+      NGROK_HOST: ${NGROK_HOST:-}
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
     depends_on:

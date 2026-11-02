@@ -134,3 +134,32 @@ Para verificar o Caddyfile após alterações na VM, execute com a variável def
 `sudo env API_HOSTNAME=overlog-api-caio.duckdns.org caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`.
 Após validar, use reload do serviço. O domínio depende da conta DuckDNS e do IP da
 VM; mudança de IP exige atualizar o DNS antes de verificar o certificado novamente.
+
+## Diagnóstico de falha do Pages — 02/11/2026
+
+Após o fechamento do terminal, Docker, backend e Caddy continuaram ativos; o
+backend tinha horas de uptime e seu health externo retornava 200. O Pages servia
+os assets com 200, mas o proxy recebia 530/1016 da Cloudflare. Um novo deploy não
+resolveu. Os nove servidores autoritativos DuckDNS e os resolvers públicos
+consultados retornaram o IP correto. Não atribuímos a falha à parada da VM.
+
+Foi realizado um teste de Worker temporário separado, apenas com health e sessão
+anônima, sem credenciais do banco ou cookies de usuários. A origem respondeu 200
+nessa execução da Cloudflare, enquanto o projeto Pages continuava falhando.
+Em teste posterior do Worker separado, o health recebeu erro externo não JSON
+(convertido em 502), enquanto auth/me respondeu 401. Portanto a falha também é
+intermitente fora do Pages: os resultados apontam para o caminho Cloudflare/origem,
+sem prova de qual configuração ou cache DNS o causa. O Worker diagnóstico expira em 60
+minutos e não deve ser configurado como origem permanente ou utilizado pelo app.
+
+O proxy agora cria a requisição de saída explicitamente, sem herdar metadados cf
+da Request original, define Host da origem e preserva Cookie, Origin e o cabeçalho
+CSRF. Respostas externas não JSON, inclusive páginas de erro 530, retornam 502 JSON
+sanitizado para o frontend. Essa proteção melhora o tratamento de falhas, mas não
+constitui prova de correção do DNS no projeto de produção.
+
+Nove testes do proxy, build frontend e compilação das Functions foram aprovados.
+A investigação da configuração real de produção requer autenticação na Cloudflare:
+a execução de `wrangler whoami` informou que a CLI não estava autenticada. Não
+aplique flags de compatibilidade ou troque o domínio sem verificar e testar o
+resultado público; sucesso do build não significa sucesso das chamadas à API.

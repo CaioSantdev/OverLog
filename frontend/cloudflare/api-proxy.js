@@ -33,13 +33,21 @@ export async function onRequest({ request, env }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    const upstream = new Request(target, request);
-    // Cookies, Origin and X-Requested-With are preserved. Do not manufacture an
-    // allowed Origin: the backend must reject cross-site writes itself.
+    // Construct an outbound request explicitly. Cloning the incoming Pages
+    // Request also carries Cloudflare-specific request metadata to the fetch.
+    const headers = new Headers(request.headers);
     for (const name of ['host', 'connection', 'keep-alive', 'transfer-encoding',
                         'proxy-authorization', 'proxy-authenticate']) {
-      upstream.headers.delete(name);
+      headers.delete(name);
     }
+    headers.set('Host', target.host);
+    // Origin, cookies and the CSRF header remain exactly as sent by the browser.
+    const init = { method: request.method, headers, redirect: 'manual' };
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      init.body = request.body;
+      init.duplex = 'half';
+    }
+    const upstream = new Request(target.toString(), init);
     const response = await fetch(upstream, {
       redirect: 'manual', cache: 'no-store', signal: controller.signal,
     });
@@ -47,6 +55,14 @@ export async function onRequest({ request, env }) {
     if (response.status >= 300 && response.status < 400) {
       await response.body?.cancel();
       return failure(502, 'A API respondeu com um redirecionamento inesperado.');
+    }
+    // Cloudflare origin/DNS errors can be HTTP responses (e.g. 530), not
+    // rejected fetches. Do not pass their HTML error pages to the JSON client.
+    const json = /(?:\/|\+)json(?:;|$)/i.test(response.headers.get('content-type') || '');
+    if (response.status !== 204 && request.method !== 'HEAD' && !json) {
+      console.warn('API returned a non-JSON response', { status: response.status, host: target.hostname });
+      await response.body?.cancel();
+      return failure(502, 'A API está temporariamente indisponível. Tente novamente.');
     }
     const result = new Response(response.body, response);
     for (const [name, value] of Object.entries(privateHeaders)) result.headers.set(name, value);

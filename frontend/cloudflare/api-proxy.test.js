@@ -10,7 +10,7 @@ test('encaminha caminho, busca e cookie para origem fixa sem cache', async t => 
   t.mock.method(globalThis, 'fetch', async (outgoing, options) => {
     assert.equal(outgoing.url, 'https://api.example.com/api/exercise-catalog?q=supino&offset=5');
     assert.equal(outgoing.headers.get('cookie'), 'overlog_session=test-token');
-    assert.equal(outgoing.headers.get('host'), null);
+    assert.equal(outgoing.headers.get('host'), 'api.example.com');
     assert.equal(options.cache, 'no-store');
     assert.equal(options.redirect, 'manual');
     return Response.json({ count: 1 });
@@ -84,4 +84,32 @@ test('rotas do frontend não são tratadas como API', async t => {
   const response = await onRequest({ request: request('/perfil'), env });
   assert.equal(response.status, 404);
   assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+
+test('não herda metadados cf nem encaminha credenciais de proxy do cliente', async t => {
+  const incoming = request('/api/health', { headers: { 'Proxy-Authorization': 'private-proxy-token', 'Origin': origin } });
+  Object.defineProperty(incoming, 'cf', { value: { resolveOverride: 'wrong.example' } });
+  t.mock.method(globalThis, 'fetch', async outgoing => {
+    assert.equal(outgoing.cf, undefined);
+    assert.equal(outgoing.headers.get('proxy-authorization'), null);
+    assert.equal(outgoing.headers.get('origin'), origin);
+    assert.equal(outgoing.headers.get('host'), 'api.example.com');
+    return Response.json({ status: 'ok' });
+  });
+  assert.equal((await onRequest({ request: incoming, env })).status, 200);
+});
+
+test('falha DNS 530 e HTML inesperado retornam erro JSON sem detalhes externos', async t => {
+  t.mock.method(console, 'warn', () => {});
+  for (const status of [530, 502, 200]) {
+    t.mock.method(globalThis, 'fetch', async () => new Response('<html>private upstream diagnostics</html>', {
+      status, headers: { 'Content-Type': 'text/html' },
+    }));
+    const response = await onRequest({ request: request(), env });
+    assert.equal(response.status, 502);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.match(response.headers.get('content-type'), /application\/json/);
+    assert.ok(!(await response.text()).includes('private'));
+  }
 });

@@ -8,4 +8,4 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 RUN chown -R overlog:overlog /app
 USER overlog
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python -m app.db.bootstrap && unset MIGRATION_POSTGRES_USER MIGRATION_POSTGRES_PASSWORD && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-proxy-headers --limit-concurrency 100 --timeout-keep-alive 5"]

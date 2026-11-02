@@ -3,6 +3,7 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-overlog}
       POSTGRES_USER: ${POSTGRES_USER:-overlog}
@@ -16,12 +17,20 @@ services:
       retries: 15
   backend:
     build: ./backend
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop: [ALL]
+    pids_limit: 128
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
     environment:
       POSTGRES_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-overlog}
-      POSTGRES_USER: ${POSTGRES_USER:-overlog}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_APP_USER:-overlog_app}
+      POSTGRES_PASSWORD: ${POSTGRES_APP_PASSWORD:?Defina senha exclusiva para o usuário da API}
+      MIGRATION_POSTGRES_USER: ${POSTGRES_USER:-overlog}
+      MIGRATION_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+      PRODUCTION: 'true'
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY}
       COOKIE_SECURE: 'true'
       CORS_ORIGINS: '["${APP_ORIGIN:?Defina APP_ORIGIN com a origem HTTPS sem barra final}"]'
@@ -38,6 +47,11 @@ services:
       context: ./frontend
       target: production
     restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    pids_limit: 128
     ports:
       - '127.0.0.1:${PRODUCTION_PORT:-8080}:8080'
     depends_on:

@@ -11,6 +11,8 @@ from app.models.session import WorkoutSession, SessionExercise, PerformedSet  # 
 
 from app.models.catalog import CatalogExercise  # noqa: F401
 
+from app.models.rate_limit import RateLimitBucket  # noqa: F401
+
 target_metadata = Base.metadata
 
 

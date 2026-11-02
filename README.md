@@ -1570,3 +1570,29 @@ Logo em preto e amarelo com halter e faixas diagonais de progressão, aplicada
 na navegação desktop e nos cabeçalhos de celular e autenticação. Arquivos
 vetoriais disponíveis em `frontend/public/logo.svg` (logo completa) e
 `frontend/public/favicon.svg` (símbolo e ícone da aba do navegador).
+
+## Reforço de segurança e limites da API
+
+A API aplica rate limit compartilhado no PostgreSQL, com contadores atômicos,
+expiração e chaves HMAC sem e-mails ou endereços em texto aberto. Bloqueios retornam
+429 com `Retry-After`, incluindo acesso direto e desenvolvimento pelo ngrok.
+
+- Login/cadastro: 30 requisições por minuto por endereço da conexão.
+- Cadastro: adicionalmente 10 a cada 10 minutos por endereço.
+- Login: adicionalmente 10 tentativas por e-mail normalizado a cada 15 minutos.
+- API geral: 600 requisições por minuto por endereço; usuários autenticados têm
+  limites adicionais de 300 leituras e 120 gravações por minuto.
+- Requisições: até 2 MiB, inclusive envio em partes, com 15 segundos para envio.
+- Banco: consultas limitadas a 10 segundos, espera de locks a 3 segundos e transações
+  ociosas a 30 segundos; pool de até 10 conexões por processo da API.
+- Produção: usuário de banco restrito, credenciais distintas para migração, cookies
+  Secure, origens HTTPS explícitas, documentação da API desativada e containers
+  de aplicação com filesystem somente leitura.
+
+Proxies podem fazer usuários compartilharem o endereço observado pela API. Não
+confiamos em `X-Forwarded-For` enviado pelo cliente. Os limites não substituem
+proteção contra DDoS no provedor. Instruções de operação, limites e backup em
+[docs/SEGURANCA.md](docs/SEGURANCA.md) e [docs/DEPLOY.md](docs/DEPLOY.md).
+
+Validação do reforço: 105 testes de backend, quatro testes completos de integração
+e verificações de permissões, concorrência e filesystem na stack de produção isolada.

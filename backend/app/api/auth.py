@@ -3,6 +3,7 @@ from sqlalchemy import update
 
 from app.api.dependencies import CurrentUser, Database, require_same_origin_header
 from app.core.config import get_settings
+from app.core.rate_limit import rate_limit_login
 from app.core.security import COOKIE_NAME, create_token
 from app.models.user import User
 from app.schemas.auth import Login, Register, UserPublic
@@ -28,7 +29,7 @@ def register(data: Register, db: Database, response: Response):
     return user
 
 
-@router.post("/login", response_model=UserPublic, dependencies=protected_post)
+@router.post("/login", response_model=UserPublic, dependencies=[*protected_post, Depends(rate_limit_login)])
 def login(data: Login, db: Database, response: Response):
     user = authenticate(db, data)
     set_session(response, user)

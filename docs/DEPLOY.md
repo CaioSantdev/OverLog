@@ -30,12 +30,14 @@ O arquivo real fica **fora do controle de versão**:
 POSTGRES_DB=overlog
 POSTGRES_USER=overlog
 POSTGRES_PASSWORD=preencha-com-uma-senha-aleatoria-exclusiva
+POSTGRES_APP_USER=overlog_app
+POSTGRES_APP_PASSWORD=preencha-com-outra-senha-aleatoria-exclusiva
 JWT_SECRET_KEY=preencha-com-uma-chave-aleatoria-de-pelo-menos-32-caracteres
 APP_ORIGIN=https://treinos.seu-dominio.com
 PRODUCTION_PORT=8080
 ```
 
-Substitua os exemplos por valores reais. `APP_ORIGIN` não deve terminar com `/`.
+Substitua os exemplos por valores reais. As duas senhas do banco devem ter pelo menos 16 caracteres e ser distintas. `APP_ORIGIN` não deve terminar com `/`.
 Instale um proxy HTTPS no host (por exemplo, Caddy ou Nginx com certificado válido)
 apontando o domínio para `127.0.0.1:8080`. Preserve `Host` e `Origin`. O navegador
 usa `/api` na mesma origem. A stack de produção força cookies `Secure`, portanto
@@ -67,8 +69,14 @@ localmente por HTTP na stack descartável; o certificado HTTPS público não foi
   senhas ou corpos de requisição; falhas do banco retornam mensagem sanitizada.
 - O frontend encerra chamadas que excedem 15 segundos. Salvamentos têm identificador
   idempotente para reenviar uma alteração cuja resposta se perdeu.
-- A limitação de tentativas está no Nginx da imagem estática. O Vite de desenvolvimento
-  e acessos diretos à API não passam por ela; não exponha esses serviços em produção.
+- A API também aplica limites persistidos no PostgreSQL, inclusive no desenvolvimento
+  e pelo ngrok. Consulte [SEGURANCA.md](SEGURANCA.md) para valores e comportamento.
+- A inicialização aplica migrações com o proprietário e cria/atualiza `overlog_app`.
+  O processo HTTP usa esse usuário restrito e não recebe as variáveis de migração.
+  A API não tem CREATE, DROP ou TRUNCATE e só pode ler o catálogo compartilhado.
+- Backend e frontend de produção usam filesystem somente leitura, `/tmp` em memória,
+  sem capabilities Linux e com `no-new-privileges`. A documentação pública da API
+  fica desativada em produção.
 
 ### Atualização, backup e restauração
 

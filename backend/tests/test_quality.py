@@ -28,6 +28,8 @@ def test_validation_does_not_echo_password(client):
 
 def test_database_failure_is_sanitized():
     class Database:
+        def get_bind(self):
+            raise OperationalError('private SQL', {}, Exception('private database host'))
         def scalar(self, query):
             raise OperationalError('private SQL', {}, Exception('private database host'))
     app.dependency_overrides[get_db] = lambda: Database()
@@ -62,6 +64,6 @@ def test_private_responses_are_not_cached_and_history_has_bounded_queries(client
     assert response.status_code == 200
     assert len(response.json()) == 3
     assert all(item['completed_sets'] == 1 for item in response.json())
-    assert len(statements) <= 3
+    assert len([statement for statement in statements if "rate_limit_buckets" not in statement]) <= 3
     assert response.headers['cache-control'] == 'no-store'
     assert c.get('/api/workouts').headers['cache-control'] == 'no-store'

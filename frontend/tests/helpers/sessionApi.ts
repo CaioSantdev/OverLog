@@ -14,6 +14,7 @@ export async function sessionApi(page: Page) {
     const method = request.method();
     const respond = (body: unknown, status = 200) => route.fulfill({ status, json: body });
     if (path === '/api/auth/me') return respond({ id: 'test-user', name: 'Teste', email: 'test@example.com', created_at: '2026-01-01T00:00:00Z' });
+    if (path === '/api/dashboard') return respond({ completed_sessions: 0, sessions_this_week: 0, progressions: 0, week_days: [0,0,0,0,0,0,0], weeks: [], timezone: 'UTC' });
     if (path === '/api/workouts') return respond([{ id: 'plan', name: 'Plano sem carga', position: 0, exercises: [{ id: 'exercise', name: 'Supino', sets: [{}] }] }]);
     if (path === '/api/sessions/active') return respond(active);
     if (path === '/api/sessions' && method === 'POST') {

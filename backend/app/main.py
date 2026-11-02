@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.dashboard import router as dashboard_router
 from app.api.catalog import router as catalog_router
 from app.api.sessions import router as sessions_router
 from app.api.workouts import router as workouts_router
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 app.include_router(router, prefix="/api")
 app.include_router(catalog_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(workouts_router, prefix="/api")
 

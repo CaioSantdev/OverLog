@@ -8,7 +8,7 @@ O objetivo é permitir que usuários organizem seus treinos, registrem séries e
 
 O projeto será desenvolvido incrementalmente, utilizando metodologias ágeis e dividido em sprints.
 
-**Status:** MVP 0.1 — Sprint 7 concluída: catálogo compartilhado de exercícios.
+**Status:** MVP 0.1 — catálogo compartilhado e interface preta e amarela implementados.
 
 ---
 
@@ -1502,3 +1502,29 @@ Validação da ampliação: 91 testes de backend e quatro testes de integração
 aprovados nos perfis desktop/mobile. A migration atual é `0006`; o teste de
 atualização, reaplicação e reversão usa banco descartável. A lista ampliada mantém
 o acesso compartilhado para contas atuais e futuras, sem publicar exercícios manuais.
+
+# 20. Interface preta e amarela
+
+A interface segue a referência de painel e sessão com fundo preto, destaques amarelos
+e faixas diagonais de atenção. A navegação fica na lateral no desktop e na parte
+inferior no celular. Os cartões dos treinos incluem ilustrações vetoriais decorativas;
+a sessão usa linhas compactas para tipo, carga, repetições e conclusão, com relógio
+de duração e descanso fixo acima da navegação. As siglas e cores dos tipos de série
+continuam disponíveis, assim como salvar, descartar e finalizar no topo e no final.
+
+- `/`: painel com treinos realizados, atividade na semana, progressões e volume
+  semanal selecionável em 4, 8 ou 12 semanas.
+- `/treinos`: lista de planos e acesso à criação e edição.
+- `/perfil`: consulta do nome, e-mail e data de cadastro da conta autenticada.
+- `GET /api/dashboard?timezone=America/Sao_Paulo`: indicadores exclusivos da conta;
+  a interface envia o fuso do navegador. A semana começa na segunda-feira.
+
+Os indicadores consideram sessões finalizadas, agrupadas pela data de início.
+O volume soma carga × repetições apenas das séries concluídas; carga zero não
+acrescenta volume. Progressões somam os aumentos de carga e repetições registrados
+nos resultados das sessões. Contas sem histórico exibem valores zerados e um estado
+vazio no gráfico. Os dados do gráfico também estão disponíveis para leitores de tela.
+
+Validação: 94 testes de backend, 38 testes de interface nos perfis desktop e celular,
+quatro testes de integração com PostgreSQL e frontend de produção, e build TypeScript/Vite.
+Os testes usam ambiente isolado, preservando os treinos e contas do ambiente local.

@@ -43,6 +43,13 @@ test('fluxo real do cadastro à progressão, com isolamento de outra conta', asy
   await expect(page.getByText('Você evoluiu neste treino!', { exact: true })).toBeVisible();
   await expect(page.locator('.comparison-values')).toContainText('62,50 kg × 8');
   await page.getByRole('link', { name: 'Voltar aos meus treinos', exact: true }).click();
+  const dashboardResponse = await page.request.get('/api/dashboard?timezone=America/Sao_Paulo');
+  expect(dashboardResponse.status()).toBe(200);
+  const dashboard = await dashboardResponse.json();
+  expect(dashboard.completed_sessions).toBe(2);
+  expect(dashboard.progressions).toBe(1);
+  expect(dashboard.weeks.reduce((sum: number, week: { volume: string }) => sum + Number(week.volume), 0)).toBe(980);
+  await expect(page.locator('.dashboard-stats')).toContainText('Progressões');
   await page.getByRole('link', { name: 'Treinos concluídos ↗', exact: true }).click();
   await expect(page.locator('.workout-card')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -60,6 +67,7 @@ test('fluxo real do cadastro à progressão, com isolamento de outra conta', asy
     const path = new URL(sessionURL).pathname.replace('/sessoes/', '/api/sessions/');
     expect((await other.request.get(path)).status()).toBe(404);
     expect(await (await other.request.get('/api/workouts')).json()).toEqual([]);
+    expect((await (await other.request.get('/api/dashboard')).json()).completed_sessions).toBe(0);
   } finally { await other.close(); }
   const response = await page.request.get('/api/workouts');
   expect(response.headers()['cache-control']).toBe('no-store');

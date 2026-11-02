@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon } from './Icon';
 
 type TimerState = { elapsedMs: number; startedAt: number | null };
 const initialState: TimerState = { elapsedMs: 0, startedAt: null };
@@ -63,7 +64,7 @@ export function RestTimer({ userId, sessionId, disabled = false }: { userId: str
     <div className="rest-timer-heading"><div><h2 id="rest-timer-title"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l3 2M9 2h6M12 2v3" /></svg>Descanso</h2><p className="hint" role="status">{running ? 'Em contagem' : state.elapsedMs > 0 ? 'Pausado' : 'Pronto para começar'}</p></div>
       <output role="timer" aria-live="off" aria-label="Tempo de descanso" className="rest-timer-time">{formatTime(elapsed(state, now))}</output>
     </div>
-    <div className="rest-timer-actions"><button type="button" onClick={toggle} disabled={disabled}>{running ? 'Pausar descanso' : state.elapsedMs > 0 ? 'Retomar descanso' : 'Iniciar descanso'}</button><button type="button" className="secondary" onClick={() => save({ elapsedMs: 0, startedAt: running ? Date.now() : null })} disabled={disabled}>Reiniciar descanso</button></div>
+    <div className="rest-timer-actions"><button type="button" aria-label={running ? 'Pausar descanso' : state.elapsedMs > 0 ? 'Retomar descanso' : 'Iniciar descanso'} onClick={toggle} disabled={disabled}><Icon name={running ? 'pause' : 'play'} /><span className="sr-only">{running ? 'Pausar descanso' : state.elapsedMs > 0 ? 'Retomar descanso' : 'Iniciar descanso'}</span></button><button type="button" className="secondary" aria-label="Reiniciar descanso" onClick={() => save({ elapsedMs: 0, startedAt: running ? Date.now() : null })} disabled={disabled}><Icon name="reset" /><span className="sr-only">Reiniciar descanso</span></button></div>
     {warning && <p className="error" role="status">{warning}</p>}
   </section>;
 }

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { SessionElapsed } from '../components/SessionElapsed';
+import { Icon } from '../components/Icon';
+import { BodyGraphic } from '../components/BodyGraphic';
 import { ProgressionPanel } from '../components/ProgressionPanel';
 import { RestTimer, clearRestTimer } from '../components/RestTimer';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,30 +45,33 @@ export function SessionPage() {
     </fieldset>;
   }
   return <section className="workouts-page editor session-page">
-    <Link to="/">← Meus treinos (continuar depois)</Link><p className="eyebrow">TREINO EM ANDAMENTO</p><h1 className="page-title">{session.name_snapshot}<span>.</span></h1>
+    <Link className="session-back" to="/" aria-label="← Meus treinos (continuar depois)"><Icon name="arrow" size={16} />Meus treinos</Link><div className="session-title"><div><p className="eyebrow">TREINO EM ANDAMENTO</p><h1 className="page-title">{session.name_snapshot}<span>.</span></h1></div><span className="live-indicator">Em andamento</span></div>
     <p className="description">{completed} de {total} séries concluídas · Início às {new Date(session.started_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
     {sessionActions('Ações no topo da sessão')}
-    <RestTimer key={`${user!.id}:${session.id}`} userId={user!.id} sessionId={session.id} disabled={closing} />
+    <SessionElapsed startedAt={session.started_at} completed={completed} total={total} />
     <div className={`save-status ${status}`} role="status">{statuses[status]}</div>
     {localWarning && <p className="error" role="status">{localWarning}</p>}
     {error && <div className="notice" role="alert"><p>{error}</p>{status === 'conflict' ? <button type="button" className="secondary" onClick={() => { if (window.confirm('Descartar o rascunho local e carregar os dados salvos no servidor?')) void reload(true); }}>Carregar dados do servidor</button> : <button type="button" className="secondary" onClick={() => void flush()}>Tentar salvar novamente</button>}</div>}
     <fieldset className="session-fields" disabled={closing || status === 'conflict'}>
-      {draft.map((ex, exIndex) => <section className="exercise-card" key={ex.id} aria-label={ex.name_snapshot}>
-        <p className="eyebrow">EXERCÍCIO {exIndex + 1}</p><h2>{ex.name_snapshot}</h2>
-        <div className="sets-list">{ex.sets.map((set, index) => <div className={`planned-set ${set.is_completed ? 'completed-set' : ''}`} key={set.id}>
-          <div className="set-heading"><strong>Série {index + 1}</strong><button type="button" className="danger small" aria-label={`Remover série ${index + 1} de ${ex.name_snapshot}`} onClick={() => { if (!set.is_completed || window.confirm('Remover esta série já concluída?')) change(draft.map((item, i) => i === exIndex ? { ...item, sets: item.sets.filter(s => s.id !== set.id) } : item)); }}>Remover</button></div>
-          <div className="set-fields"><label>Tipo<SetTypeSelect label={`Tipo da série ${index + 1} de ${ex.name_snapshot}`} value={set.set_type} onChange={value => updateSet(exIndex, index, { ...set, set_type: value })} /></label>
-            <label>Repetições<input type="number" inputMode="numeric" min="0" max="999" step="1" required value={set.repetitions} onChange={event => updateSet(exIndex, index, { ...set, repetitions: event.target.value })} /></label>
-            <label>Carga (kg)<input id={`weight-${set.id}`} type="text" inputMode="decimal" required={set.is_completed} aria-invalid={set.is_completed && set.weight.trim() === ''} aria-describedby={`weight-help-${set.id}`} placeholder="Ex.: 20,5" value={set.weight} onChange={event => updateSet(exIndex, index, { ...set, weight: event.target.value })} /></label>
-          </div>
-          <label className="complete-toggle"><input type="checkbox" checked={set.is_completed} onChange={event => { updateSet(exIndex, index, { ...set, is_completed: event.target.checked }); if (event.target.checked && set.weight.trim() === '') document.getElementById(`weight-${set.id}`)?.focus(); }} />Série {index + 1} concluída</label>
-          <p id={`weight-help-${set.id}`} className={set.is_completed && set.weight.trim() === '' ? 'error' : 'hint'}>{set.weight.trim() === '' ? (set.is_completed ? 'Informe a carga desta série para salvar a conclusão. Use 0 para peso corporal.' : 'Para registrar a conclusão, informe a carga. Use 0 para peso corporal.') : 'Aceita vírgula ou ponto na carga.'}</p>
+      {draft.map((ex, exIndex) => <section className="exercise-card execution-exercise" key={ex.id} aria-label={ex.name_snapshot}>
+        <div className="execution-exercise-heading"><span className="exercise-number">{exIndex + 1}</span><div><h2>{ex.name_snapshot}</h2><p>{ex.sets.filter(item => item.is_completed).length} de {ex.sets.length} séries concluídas</p></div><BodyGraphic /></div>
+        <div className="session-row-heading" aria-hidden="true"><span>Série</span><span>Tipo</span><span>Carga (kg)</span><span>Repetições</span><span>OK</span><span /></div>
+        <div className="sets-list">{ex.sets.map((set, index) => <div className={`planned-set session-set ${set.is_completed ? 'completed-set' : ''}`} key={set.id}>
+          <strong className="set-number" aria-label={`Série ${index + 1}`}>{index + 1}</strong>
+          <SetTypeSelect label={`Tipo da série ${index + 1} de ${ex.name_snapshot}`} value={set.set_type} onChange={value => updateSet(exIndex, index, { ...set, set_type: value })} />
+          <label className="session-input"><span className="sr-only">Carga (kg)</span><input aria-label="Carga (kg)" id={`weight-${set.id}`} type="text" inputMode="decimal" required={set.is_completed} aria-invalid={set.is_completed && set.weight.trim() === ''} aria-describedby={set.is_completed && set.weight.trim() === '' ? `weight-help-${set.id}` : `exercise-help-${ex.id}`} placeholder="—" value={set.weight} onChange={event => updateSet(exIndex, index, { ...set, weight: event.target.value })} /><span className="field-unit" aria-hidden="true">kg</span></label>
+          <label className="session-input"><span className="sr-only">Repetições</span><input aria-label="Repetições" type="number" inputMode="numeric" min="0" max="999" step="1" required value={set.repetitions} onChange={event => updateSet(exIndex, index, { ...set, repetitions: event.target.value })} /><span className="field-unit" aria-hidden="true">rep</span></label>
+          <label className="complete-toggle"><input type="checkbox" aria-label={`Série ${index + 1} concluída`} checked={set.is_completed} onChange={event => { updateSet(exIndex, index, { ...set, is_completed: event.target.checked }); if (event.target.checked && set.weight.trim() === '') document.getElementById(`weight-${set.id}`)?.focus(); }} /><span className="sr-only">Série {index + 1} concluída</span></label>
+          <button type="button" className="remove-set" aria-label={`Remover série ${index + 1} de ${ex.name_snapshot}`} onClick={() => { if (!set.is_completed || window.confirm('Remover esta série já concluída?')) change(draft.map((item, i) => i === exIndex ? { ...item, sets: item.sets.filter(s => s.id !== set.id) } : item)); }}><Icon name="close" size={14} /></button>
+          {set.is_completed && set.weight.trim() === '' && <p id={`weight-help-${set.id}`} className="error session-set-error">Informe a carga desta série para salvar a conclusão. Use 0 para peso corporal.</p>}
         </div>)}</div>
-        <button type="button" className="secondary" disabled={ex.sets.length >= 60} onClick={() => change(draft.map((item, i) => i === exIndex ? { ...item, sets: [...item.sets, { id: crypto.randomUUID(), position: item.sets.length, set_type: 'work', weight: '', repetitions: '10', is_completed: false }] } : item))}>+ Adicionar série</button>
+        <p className="hint exercise-help" id={`exercise-help-${ex.id}`}>Informe a carga para concluir. Use 0 para peso corporal. Aceita vírgula ou ponto.</p>
+        <button type="button" className="secondary add-session-set" disabled={ex.sets.length >= 60} onClick={() => change(draft.map((item, i) => i === exIndex ? { ...item, sets: [...item.sets, { id: crypto.randomUUID(), position: item.sets.length, set_type: 'work', weight: '', repetitions: '10', is_completed: false }] } : item))}>+ Adicionar série</button>
       </section>)}
-      <p className="hint">Informe zero para exercícios sem carga externa. Suas alterações não mudam o plano original.</p>
+      <p className="hint">Seus registros são salvos nesta sessão. O plano original permanece disponível para o próximo treino.</p>
       {sessionActions('Ações no final da sessão')}
     </fieldset>
+    <div className="session-rest-dock"><RestTimer key={`${user!.id}:${session.id}`} userId={user!.id} sessionId={session.id} disabled={closing} /></div>
     {confirm && <div className="confirmation" role="alertdialog" aria-modal="true" aria-labelledby="confirm-session-title"><div className="confirmation-card"><h2 id="confirm-session-title">{confirm === 'finish' ? 'Finalizar este treino?' : 'Descartar esta sessão?'}</h2><p>{confirm === 'finish' ? `${completed} de ${total} séries concluídas. As séries pendentes serão registradas como não concluídas.` : 'Esta sessão será encerrada sem entrar no histórico de treinos concluídos.'}</p><button disabled={closing} onClick={() => { void close(confirm).then(() => setConfirm(null)); }}>{closing ? 'Aguarde…' : confirm === 'finish' ? 'Sim, finalizar treino' : 'Sim, descartar sessão'}</button><button className="secondary" disabled={closing} onClick={() => setConfirm(null)}>Continuar treino</button></div></div>}
   </section>;
 }

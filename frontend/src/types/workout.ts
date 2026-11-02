@@ -1,4 +1,5 @@
-export const SET_TYPES = { warmup: 'Aquecimento', feeder: 'Feeder', work: 'Work Set', backoff: 'Backoff Set', failure: 'Falha' } as const;
+export const SET_TYPES = { warmup: 'Aquecimento', feeder: 'Feeder', work: 'Working Set', backoff: 'BackOff', failure: 'Falha' } as const;
+export const SET_TYPE_INITIALS = { warmup: 'A', feeder: 'Fe', work: 'W', backoff: 'B', failure: 'F' } as const;
 export type PlannedSet = { id?: string; set_type: keyof typeof SET_TYPES; target_repetitions: number; target_weight: string | null };
 export type Exercise = { id?: string; catalog_exercise_id?: string | null; name: string; sets: PlannedSet[] };
 export type WorkoutInput = { name: string; exercises: Exercise[] };

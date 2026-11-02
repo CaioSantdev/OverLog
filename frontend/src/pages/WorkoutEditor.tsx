@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ExerciseCatalog, type CatalogExercise } from '../components/ExerciseCatalog';
+import { SetTypeSelect } from '../components/SetType';
 import { api } from '../services/api';
-import { SET_TYPES, workoutInput, type Exercise, type PlannedSet, type Workout, type WorkoutInput } from '../types/workout';
+import { workoutInput, type Exercise, type PlannedSet, type Workout, type WorkoutInput } from '../types/workout';
 
 type DraftSet = Omit<PlannedSet, 'target_repetitions'> & { target_repetitions: string; key: string };
 type DraftExercise = Omit<Exercise, 'sets'> & { sets: DraftSet[]; key: string };
@@ -82,7 +83,7 @@ export function WorkoutEditor() {
           <p className="hint">{ex.catalog_exercise_id ? 'Do catálogo compartilhado. Alterar o nome transforma este item em manual.' : 'Exercício manual, disponível somente neste treino.'}</p>
           <div className="sets-list">{ex.sets.map((set, setIndex) => <div className="planned-set" key={set.key}>
             <div className="set-heading"><span>Série {setIndex + 1}</span><div className="inline-actions"><button type="button" className="secondary icon-button" disabled={setIndex === 0} aria-label={`Subir série ${setIndex + 1} do exercício ${index + 1}`} onClick={() => exercise(index, { ...ex, sets: move(ex.sets, setIndex, -1) })}>↑</button><button type="button" className="secondary icon-button" disabled={setIndex === ex.sets.length - 1} aria-label={`Descer série ${setIndex + 1} do exercício ${index + 1}`} onClick={() => exercise(index, { ...ex, sets: move(ex.sets, setIndex, 1) })}>↓</button><button type="button" className="danger small" aria-label={`Remover série ${setIndex + 1} do exercício ${index + 1}`} onClick={() => exercise(index, { ...ex, sets: ex.sets.filter((_, n) => n !== setIndex) })}>Remover</button></div></div>
-            <div className="set-fields"><label>Tipo<select value={set.set_type} onChange={e => setChange(index, setIndex, { ...set, set_type: e.target.value as PlannedSet['set_type'] })}>{Object.entries(SET_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <div className="set-fields"><label>Tipo<SetTypeSelect label={`Tipo da série ${setIndex + 1} do exercício ${index + 1}`} value={set.set_type} onChange={value => setChange(index, setIndex, { ...set, set_type: value })} /></label>
               <label>Repetições<input type="number" inputMode="numeric" required min="1" max="999" step="1" value={set.target_repetitions} onChange={e => setChange(index, setIndex, { ...set, target_repetitions: e.target.value })} /></label>
               <label>Carga (kg)<input type="number" inputMode="decimal" min="0" max="99999.99" step="0.01" placeholder="Opcional" value={set.target_weight ?? ''} onChange={e => setChange(index, setIndex, { ...set, target_weight: e.target.value || null })} /></label>
             </div>

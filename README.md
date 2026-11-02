@@ -1473,3 +1473,11 @@ criadas posteriormente. Não é necessário importar os exercícios no cadastro.
   com treino antigo: exercício e série preservados, catálogo com exatamente 46 itens.
 - Ambiente local atualizado com os itens globais. A stack e as contas temporárias
   de testes foram removidas, preservando os dados de desenvolvimento.
+
+
+## Tipos de série — Identificação visual
+
+Editor, execução e resumos exibem apenas a sigla colorida: **A** (Aquecimento,
+amarelo), **Fe** (Feeder, azul), **W** (Working Set, verde), **B** (BackOff, roxo)
+e **F** (Falha, coral). O nome completo aparece ao abrir o seletor. Os controles
+nativos e os nomes acessíveis são preservados; os valores da API permanecem iguais.

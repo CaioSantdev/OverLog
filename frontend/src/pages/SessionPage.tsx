@@ -5,7 +5,7 @@ import { RestTimer, clearRestTimer } from '../components/RestTimer';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkoutSession } from '../hooks/useWorkoutSession';
 import { duration, type DraftSet } from '../types/session';
-import { SET_TYPES } from '../types/workout';
+import { SetTypeBadge, SetTypeSelect } from '../components/SetType';
 
 export function SessionPage() {
   const { id = '' } = useParams();
@@ -30,7 +30,7 @@ export function SessionPage() {
     <p className="hint">Início: {new Date(session.started_at).toLocaleString('pt-BR')}<br />Término: {session.finished_at && new Date(session.finished_at).toLocaleString('pt-BR')}</p>
     {session.status === 'completed' && <ProgressionPanel key={session.id} sessionId={session.id} />}
     <h2>Registro detalhado</h2>
-    {session.exercises.map(ex => <section className="exercise-card summary-exercise" key={ex.id}><h2>{ex.name_snapshot}</h2>{ex.sets.map((set, index) => <p className={set.is_completed ? '' : 'hint'} key={set.id}>Série {index + 1} · {SET_TYPES[set.set_type]} · {set.weight ?? '—'} kg × {set.repetitions} rep. · {set.is_completed ? 'Concluída' : 'Não concluída'}</p>)}</section>)}
+    {session.exercises.map(ex => <section className="exercise-card summary-exercise" key={ex.id}><h2>{ex.name_snapshot}</h2>{ex.sets.map((set, index) => <p className={set.is_completed ? '' : 'hint'} key={set.id}>Série {index + 1} · <SetTypeBadge value={set.set_type} /> · {set.weight ?? '—'} kg × {set.repetitions} rep. · {set.is_completed ? 'Concluída' : 'Não concluída'}</p>)}</section>)}
     <Link className="action" to="/">Voltar aos meus treinos</Link>
   </section>;
   const statuses = { saved: 'Tudo salvo no banco', pending: 'Alterações pendentes…', saving: 'Salvando…', error: 'Não foi possível salvar', conflict: 'Conflito de edição', invalid: 'Confira os campos para salvar' };
@@ -54,7 +54,7 @@ export function SessionPage() {
         <p className="eyebrow">EXERCÍCIO {exIndex + 1}</p><h2>{ex.name_snapshot}</h2>
         <div className="sets-list">{ex.sets.map((set, index) => <div className={`planned-set ${set.is_completed ? 'completed-set' : ''}`} key={set.id}>
           <div className="set-heading"><strong>Série {index + 1}</strong><button type="button" className="danger small" aria-label={`Remover série ${index + 1} de ${ex.name_snapshot}`} onClick={() => { if (!set.is_completed || window.confirm('Remover esta série já concluída?')) change(draft.map((item, i) => i === exIndex ? { ...item, sets: item.sets.filter(s => s.id !== set.id) } : item)); }}>Remover</button></div>
-          <div className="set-fields"><label>Tipo<select aria-label={`Tipo da série ${index + 1} de ${ex.name_snapshot}`} value={set.set_type} onChange={event => updateSet(exIndex, index, { ...set, set_type: event.target.value as DraftSet['set_type'] })}>{Object.entries(SET_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <div className="set-fields"><label>Tipo<SetTypeSelect label={`Tipo da série ${index + 1} de ${ex.name_snapshot}`} value={set.set_type} onChange={value => updateSet(exIndex, index, { ...set, set_type: value })} /></label>
             <label>Repetições<input type="number" inputMode="numeric" min="0" max="999" step="1" required value={set.repetitions} onChange={event => updateSet(exIndex, index, { ...set, repetitions: event.target.value })} /></label>
             <label>Carga (kg)<input id={`weight-${set.id}`} type="text" inputMode="decimal" required={set.is_completed} aria-invalid={set.is_completed && set.weight.trim() === ''} aria-describedby={`weight-help-${set.id}`} placeholder="Ex.: 20,5" value={set.weight} onChange={event => updateSet(exIndex, index, { ...set, weight: event.target.value })} /></label>
           </div>

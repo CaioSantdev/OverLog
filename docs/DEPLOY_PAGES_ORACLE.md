@@ -163,3 +163,38 @@ A investigação da configuração real de produção requer autenticação na C
 a execução de `wrangler whoami` informou que a CLI não estava autenticada. Não
 aplique flags de compatibilidade ou troque o domínio sem verificar e testar o
 resultado público; sucesso do build não significa sucesso das chamadas à API.
+
+## Origem atual do Pages após recuperação
+
+A produção do Pages foi publicada com o proxy ajustado do commit `ef81394`.
+`API_ORIGIN` foi alterada para `https://159-112-178-203.sslip.io`. Esse hostname
+resolve para a mesma VM e recebeu certificado público próprio pelo Caddy. O
+endereço original DuckDNS foi preservado. O drop-in do Caddy agora contém:
+
+```ini
+[Service]
+Environment="API_HOSTNAME=overlog-api-caio.duckdns.org, 159-112-178-203.sslip.io"
+```
+
+A configuração foi validada e recarregada; a variável com a lista de hostnames
+contém espaço depois da vírgula e deve permanecer entre aspas no systemd. O
+bootstrap, Docker, banco e suas credenciais não foram alterados nesta investigação.
+As flags experimentais de fetch público não resolveram o incidente e foram
+restauradas para a lista vazia. Não foi adotado um túnel temporário para produção.
+
+Após o usuário informar a recuperação, novos testes públicos confirmaram
+`/api/health` pelo Pages com 200/banco conectado e `/api/auth/me` anônimo com 401.
+A troca de hostname e o proxy novo estavam ativos nesse momento. Isso documenta
+uma configuração que voltou a responder, sem demonstrar que o DuckDNS era a
+causa exclusiva: o erro 530/1016 aparecia no caminho de resolução da Cloudflare,
+enquanto o DNS público e a API direta respondiam. Continue monitorando estabilidade.
+
+O frontend público continua em https://overlog-7q5.pages.dev. O hostname sslip.io
+incorpora o IP atual da VM; uma troca de IP exigirá atualizar a origem e configurar
+um certificado correspondente. Não altere API_ORIGIN de volta para o endereço
+anterior durante este diagnóstico sem testar o resultado via Pages.
+
+A publicação foi feita pela CLI autenticada da Cloudflare; o push do commit local
+para o GitHub ainda é necessário para alinhar o próximo deploy automático ao
+código atualmente publicado. O teste completo de login/salvamento pelo usuário e
+as medidas de rotação/SSL do banco acima continuam como próximos passos.

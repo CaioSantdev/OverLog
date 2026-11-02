@@ -1625,3 +1625,8 @@ Caddy e liberação persistente de TCP 80/443 estão documentados em
 `deploy/oracle`. O endpoint `/api/health` foi validado externamente com certificado
 válido e banco conectado. A configuração `API_ORIGIN` no Pages e o fluxo completo
 de login ainda precisam ser concluídos.
+
+Após a investigação do erro 530/1016 no Pages, a variável de runtime `API_ORIGIN`
+passou a usar `https://159-112-178-203.sslip.io`, com certificado válido para a mesma
+VM. O DuckDNS permanece disponível. Novos testes pelo Pages confirmaram health 200
+e sessão anônima 401. Consulte o guia de deploy separado antes de alterar a origem.

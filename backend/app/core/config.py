@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,7 +21,10 @@ class Settings(BaseSettings):
     rate_limit_write: int = Field(default=120, ge=1, le=10000)
 
     postgres_host: str = "localhost"
-    postgres_port: int = 5432
+    postgres_port: int = Field(default=5432, ge=1, le=65535)
+    postgres_schema: str = Field(default="public", pattern=r"^[a-z_][a-z0-9_]{0,62}$")
+    postgres_sslmode: Literal['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'] = 'prefer'
+    postgres_sslrootcert: str | None = None
     postgres_db: str = "overlog"
     postgres_user: str = "overlog"
     postgres_password: str = "local-development-only"
@@ -38,6 +42,10 @@ class Settings(BaseSettings):
         return self
 
     @property
+    def connection_options(self) -> str:
+        return f"-c search_path={self.postgres_schema}"
+
+    @property
     def database_url(self) -> URL:
         return URL.create(
             "postgresql+psycopg",
@@ -46,6 +54,8 @@ class Settings(BaseSettings):
             host=self.postgres_host,
             port=self.postgres_port,
             database=self.postgres_db,
+            query={"sslmode": self.postgres_sslmode, "options": self.connection_options,
+                   **({"sslrootcert": self.postgres_sslrootcert} if self.postgres_sslrootcert else {})},
         )
 
 

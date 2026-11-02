@@ -14,3 +14,4 @@ playwright-report/
 test-results/
 *.dump
 !.env.production.example
+!.env.cloud.example

@@ -1,0 +1,76 @@
+# Oracle VM + Supabase PostgreSQL + Cloudflare Tunnel. No public container ports.
+x-app: &app
+  build: ./backend
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+  cap_drop: [ALL]
+  pids_limit: 128
+  security_opt: ["no-new-privileges:true"]
+  volumes:
+    - ${SUPABASE_CA_FILE:?Informe o caminho do certificado CA}:/run/certs/supabase-ca.crt:ro
+x-db: &db
+  POSTGRES_HOST: ${SUPABASE_DB_HOST:?Defina o host do PostgreSQL/Supavisor}
+  POSTGRES_PORT: ${SUPABASE_DB_PORT:-5432}
+  POSTGRES_DB: ${SUPABASE_DB_NAME:-postgres}
+  POSTGRES_SCHEMA: overlog
+  POSTGRES_SSLMODE: verify-full
+  POSTGRES_SSLROOTCERT: /run/certs/supabase-ca.crt
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina uma chave JWT aleatória}
+  PRODUCTION: 'true'
+  COOKIE_SECURE: 'true'
+  CORS_ORIGINS: '["${APP_ORIGIN:?Defina a URL HTTPS pública sem barra final}"]'
+services:
+  migrate:
+    <<: *app
+    profiles: [maintenance]
+    command: [alembic, upgrade, head]
+    environment:
+      <<: *db
+      POSTGRES_USER: ${SUPABASE_MIGRATION_USER:?Defina o usuário de migração}
+      POSTGRES_PASSWORD: ${SUPABASE_MIGRATION_PASSWORD:?Defina a senha de migração}
+  backend:
+    <<: *app
+    restart: unless-stopped
+    # Migrations run explicitly in the maintenance job, never with runtime credentials.
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, '8000', --no-proxy-headers, --limit-concurrency, '100', --timeout-keep-alive, '5']
+    environment:
+      <<: *db
+      POSTGRES_USER: ${SUPABASE_RUNTIME_USER:?Defina o usuário restrito da API}
+      POSTGRES_PASSWORD: ${SUPABASE_RUNTIME_PASSWORD:?Defina a senha restrita da API}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop: [ALL]
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://localhost:8080/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  tunnel:
+    image: ${CLOUDFLARED_IMAGE:-cloudflare/cloudflared:latest}
+    restart: unless-stopped
+    command: [tunnel, --no-autoupdate, run]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Defina o token do túnel}
+    user: '65532:65532'
+    read_only: true
+    cap_drop: [ALL]
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      frontend:
+        condition: service_healthy

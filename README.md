@@ -1596,3 +1596,14 @@ proteção contra DDoS no provedor. Instruções de operação, limites e backup
 
 Validação do reforço: 105 testes de backend, quatro testes completos de integração
 e verificações de permissões, concorrência e filesystem na stack de produção isolada.
+
+## Deploy na Oracle com Cloudflare e Supabase
+
+Preparação disponível em `compose.cloud.yaml` e `.env.cloud.example`: aplicação
+na VM Oracle, publicação por Cloudflare Tunnel e PostgreSQL Supabase com TLS
+validado, schema privado `overlog` e usuário restrito. Migrações rodam em serviço
+de manutenção separado. Nenhuma porta dos containers é publicada no host.
+
+O passo a passo e os scripts SQL estão em [docs/DEPLOY_CLOUD.md](docs/DEPLOY_CLOUD.md).
+Os recursos remotos, domínio e credenciais precisam ser configurados antes da
+publicação. A preparação não altera nem importa os dados do banco local.

@@ -50,6 +50,8 @@ test('recupera o tempo após suspensão, recarga e retomada da sessão', async (
   await expect(page.getByRole('timer')).toHaveText('05:00');
   await page.getByRole('button', { name: 'Retomar descanso', exact: true }).click();
   await page.getByRole('link', { name: '← Meus treinos (continuar depois)', exact: true }).click();
+  // Let the real mocked requests settle before advancing the browser's timeout clock.
+  await expect(page.getByRole('link', { name: 'Retomar treino', exact: true })).toBeVisible();
   await page.clock.fastForward('01:00');
   await page.getByRole('link', { name: 'Retomar treino', exact: true }).click();
   await expect(page.getByRole('timer')).toHaveText('06:00');

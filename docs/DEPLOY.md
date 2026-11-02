@@ -103,7 +103,7 @@ não altera automaticamente os usuários/senhas de um volume já inicializado.
 
 As versões Python de execução ficam em `backend/requirements.lock`; o frontend usa
 `package-lock.json`. Os testes isolados de backend usam SQLite com chaves estrangeiras.
-O teste completo usa PostgreSQL real, Nginx e as quatro migrations em uma stack separada.
+O teste completo usa PostgreSQL real, Nginx e todas as migrations em uma stack separada.
 
 ```bash
 python3 -m venv .venv

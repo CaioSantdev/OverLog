@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.catalog import CatalogExercise
 from app.models.user import User
 from app.models.workout import PlannedSet, TemplateExercise, WorkoutTemplate, now
 from app.schemas.workout import WorkoutInput
@@ -23,7 +24,12 @@ def get_workout(db: Session, user_id: str, workout_id: str, lock=False):
     return workout
 
 
-def apply_plan(workout: WorkoutTemplate, data: WorkoutInput):
+def apply_plan(workout: WorkoutTemplate, data: WorkoutInput, db: Session):
+    catalog_ids = {exercise.catalog_exercise_id for exercise in data.exercises if exercise.catalog_exercise_id}
+    catalog_names = dict(db.execute(select(CatalogExercise.id, CatalogExercise.name).where(
+        CatalogExercise.id.in_(catalog_ids))).all()) if catalog_ids else {}
+    if catalog_ids - catalog_names.keys():
+        raise HTTPException(422, "Um exercício selecionado não existe no catálogo. Escolha outro ou adicione manualmente.")
     # Validate every supplied ID before changing the aggregate.
     existing = {exercise.id: exercise for exercise in workout.exercises}
     seen_exercises, seen_sets = set(), set()
@@ -41,7 +47,13 @@ def apply_plan(workout: WorkoutTemplate, data: WorkoutInput):
     exercises = []
     for position, exercise_data in enumerate(data.exercises):
         exercise = existing.get(exercise_data.id) or TemplateExercise()
-        exercise.name, exercise.position = exercise_data.name, position
+        catalog_id = exercise_data.catalog_exercise_id
+        if catalog_id is None:
+            exercise.name = exercise_data.name
+        elif exercise.id is None or exercise.catalog_exercise_id != catalog_id:
+            exercise.name = catalog_names[catalog_id]
+        exercise.catalog_exercise_id = catalog_id
+        exercise.position = position
         existing_sets = {item.id: item for item in exercise.sets}
         sets = []
         for set_position, item in enumerate(exercise_data.sets):
@@ -66,7 +78,7 @@ def create_workout(db: Session, user: User, data: WorkoutInput):
     if free_position is None:
         raise HTTPException(409, "Você pode cadastrar até seis treinos. Exclua um para criar outro.")
     workout = WorkoutTemplate(user_id=user.id, position=free_position)
-    apply_plan(workout, data)
+    apply_plan(workout, data, db)
     db.add(workout)
     db.commit()
     return get_workout(db, user.id, workout.id)

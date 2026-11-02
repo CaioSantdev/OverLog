@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ExerciseCatalog, type CatalogExercise } from '../components/ExerciseCatalog';
 import { api } from '../services/api';
 import { SET_TYPES, workoutInput, type Exercise, type PlannedSet, type Workout, type WorkoutInput } from '../types/workout';
 
@@ -26,6 +27,7 @@ export function WorkoutEditor() {
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => {
     if (!id) return;
@@ -42,9 +44,14 @@ export function WorkoutEditor() {
   }, [dirty]);
   function change(next: Draft) { setDraft(next); setDirty(true); }
   function exercise(index: number, next: DraftExercise) { change({ ...draft, exercises: draft.exercises.map((ex, i) => i === index ? next : ex) }); }
+  function addCatalogExercise(item: CatalogExercise) {
+    if (draft.exercises.length >= 100) return;
+    change({ ...draft, exercises: [...draft.exercises, { key: key(), catalog_exercise_id: item.id, name: item.name, sets: [newSet()] }] });
+    setCatalogOpen(false);
+  }
   async function save(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError('');
-    const input: WorkoutInput = { name: draft.name, exercises: draft.exercises.map(ex => ({ id: ex.id, name: ex.name, sets: ex.sets.map(set => ({ id: set.id, set_type: set.set_type, target_repetitions: Number(set.target_repetitions), target_weight: set.target_weight === '' ? null : set.target_weight })) })) };
+    const input: WorkoutInput = { name: draft.name, exercises: draft.exercises.map(ex => ({ id: ex.id, catalog_exercise_id: ex.catalog_exercise_id ?? null, name: ex.name, sets: ex.sets.map(set => ({ id: set.id, set_type: set.set_type, target_repetitions: Number(set.target_repetitions), target_weight: set.target_weight === '' ? null : set.target_weight })) })) };
     try { await api<Workout>(id ? `/workouts/${id}` : '/workouts', input, id ? 'PUT' : 'POST'); setDirty(false); navigate('/'); }
     catch (e) { setError(e instanceof Error ? e.message : 'Erro ao salvar treino.'); }
     finally { setBusy(false); }
@@ -71,7 +78,8 @@ export function WorkoutEditor() {
             <button type="button" className="secondary icon-button" disabled={index === draft.exercises.length - 1} aria-label={`Descer exercício ${index + 1}`} onClick={() => change({ ...draft, exercises: move(draft.exercises, index, 1) })}>↓</button>
             <button type="button" className="danger small" aria-label={`Remover exercício ${index + 1}`} onClick={() => exerciseRemove(index)}>Remover</button>
           </div></div>
-          <label>Nome do exercício<input required maxLength={100} value={ex.name} onChange={e => exercise(index, { ...ex, name: e.target.value })} placeholder="Ex.: Supino reto" /></label>
+          <label>Nome do exercício<input required maxLength={100} value={ex.name} onChange={e => exercise(index, { ...ex, name: e.target.value, catalog_exercise_id: null })} placeholder="Ex.: Supino reto" /></label>
+          <p className="hint">{ex.catalog_exercise_id ? 'Do catálogo compartilhado. Alterar o nome transforma este item em manual.' : 'Exercício manual, disponível somente neste treino.'}</p>
           <div className="sets-list">{ex.sets.map((set, setIndex) => <div className="planned-set" key={set.key}>
             <div className="set-heading"><span>Série {setIndex + 1}</span><div className="inline-actions"><button type="button" className="secondary icon-button" disabled={setIndex === 0} aria-label={`Subir série ${setIndex + 1} do exercício ${index + 1}`} onClick={() => exercise(index, { ...ex, sets: move(ex.sets, setIndex, -1) })}>↑</button><button type="button" className="secondary icon-button" disabled={setIndex === ex.sets.length - 1} aria-label={`Descer série ${setIndex + 1} do exercício ${index + 1}`} onClick={() => exercise(index, { ...ex, sets: move(ex.sets, setIndex, 1) })}>↓</button><button type="button" className="danger small" aria-label={`Remover série ${setIndex + 1} do exercício ${index + 1}`} onClick={() => exercise(index, { ...ex, sets: ex.sets.filter((_, n) => n !== setIndex) })}>Remover</button></div></div>
             <div className="set-fields"><label>Tipo<select value={set.set_type} onChange={e => setChange(index, setIndex, { ...set, set_type: e.target.value as PlannedSet['set_type'] })}>{Object.entries(SET_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -81,7 +89,10 @@ export function WorkoutEditor() {
           </div>)}</div>
           <button type="button" className="secondary" disabled={ex.sets.length >= 30} onClick={() => exercise(index, { ...ex, sets: [...ex.sets, newSet()] })}>+ Adicionar série</button>
         </section>)}
-        <button type="button" className="secondary" disabled={draft.exercises.length >= 100} onClick={() => change({ ...draft, exercises: [...draft.exercises, { key: key(), name: '', sets: [newSet()] }] })}>+ Adicionar exercício</button>
+        <div className="exercise-add-actions"><button type="button" className="secondary" disabled={draft.exercises.length >= 100} aria-expanded={catalogOpen} onClick={() => setCatalogOpen(value => !value)}>Escolher do catálogo</button>
+          <button type="button" className="secondary" disabled={draft.exercises.length >= 100} onClick={() => { setCatalogOpen(false); change({ ...draft, exercises: [...draft.exercises, { key: key(), name: '', catalog_exercise_id: null, sets: [newSet()] }] }); }}>+ Adicionar exercício</button></div>
+        <p className="hint">Escolha um exercício existente ou use “Adicionar exercício” para digitar um nome manualmente.</p>
+        {catalogOpen && <ExerciseCatalog onSelect={addCatalogExercise} onClose={() => setCatalogOpen(false)} />}
         {error && <p className="error" role="alert">{error}</p>}
         <div className="save-bar"><p className="hint">{dirty ? 'Alterações ainda não salvas.' : 'Seu plano fica disponível para consultar e editar.'}</p><button type="submit">{busy ? 'Salvando…' : 'Salvar treino'}<span aria-hidden="true">↗</span></button></div>
       </fieldset>

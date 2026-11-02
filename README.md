@@ -8,7 +8,7 @@ O objetivo é permitir que usuários organizem seus treinos, registrem séries e
 
 O projeto será desenvolvido incrementalmente, utilizando metodologias ágeis e dividido em sprints.
 
-**Status:** MVP 0.1 — Sprint 6 concluída e validada localmente.
+**Status:** MVP 0.1 — Sprint 7 concluída: catálogo compartilhado de exercícios.
 
 ---
 
@@ -647,6 +647,19 @@ O usuário deverá visualizar seus resultados e receber indicadores ao superar m
 ### Critério de aceite
 
 O fluxo completo deverá funcionar tanto no desktop quanto no smartphone.
+
+---
+
+## Sprint 7 — Catálogo compartilhado de exercícios
+
+**Objetivo:** escolher exercícios existentes ou adicioná-los manualmente.
+
+- Catálogo global persistido no banco, disponível a usuários atuais e futuros.
+- Lista inicial instalada por migration, sem duplicar itens no cadastro de contas.
+- Busca por texto e filtros de grupo muscular e equipamento.
+- Seleção no editor, mantendo cadastro manual privado no treino.
+- Nome copiado para o treino e histórico preservado.
+- Testes de acesso compartilhado, permissões e integração.
 
 ---
 
@@ -1369,3 +1382,94 @@ As sessões em andamento oferecem **Salvar andamento**, **Descartar sessão** e
 **Finalizar treino** tanto no topo, antes do cronômetro, quanto no final dos exercícios.
 Os dois grupos compartilham o mesmo salvamento, validações e confirmações, e ficam
 bloqueados durante o encerramento ou em conflito de edição. O layout se adapta ao celular.
+
+
+# 19. Sprint 7 — Catálogo compartilhado
+
+O catálogo é global e somente leitura para os usuários. A migration `0005` cria
+os itens iniciais uma única vez no banco, independentemente do cadastro de contas.
+Todos os usuários autenticados, inclusive os criados no futuro, consultam a mesma lista.
+O cadastro manual continua restrito ao treino do usuário e não publica itens no catálogo.
+
+A seleção copia o nome do catálogo para o treino e guarda uma referência opcional.
+Editar o nome na interface transforma o item em manual. Atualizações futuras do
+catálogo não renomeiam os exercícios já salvos; os snapshots de sessão e o histórico
+continuam independentes. Itens existentes antes desta sprint permanecem manuais.
+
+
+## Catálogo inicial e uso
+
+A lista inicial contém 46 exercícios com nome, grupo muscular e equipamento.
+No editor de treino, **Escolher do catálogo** abre busca e filtros; **Adicionar
+exercício** mantém o cadastro manual. É possível misturar as duas origens no mesmo
+plano, configurar séries normalmente e reorganizar os exercícios.
+
+A busca ignora acentos e diferenças de maiúsculas, e pode encontrar nome, grupo
+muscular ou equipamento. Os filtros usam as opções retornadas pelo banco. A lista
+é paginada (20 itens por padrão, até 50 por chamada), e falhas permitem nova tentativa
+ou continuar com um exercício manual sem perder a edição do treino.
+
+### API e estrutura
+
+| Método | Endpoint | Comportamento |
+|---|---|---|
+| GET | `/api/exercise-catalog` | Busca global para qualquer usuário autenticado |
+| GET | `/api/exercise-catalog/filters` | Grupos musculares e equipamentos disponíveis |
+
+Parâmetros da busca: `q` (até 100 caracteres), `muscle_group`, `equipment`,
+`offset` e `limit`. A resposta inclui `items`, `total`, `offset` e `limit`.
+O catálogo não possui `user_id`, e não há endpoints de escrita para usuários.
+Novos itens compartilhados devem ser adicionados em futuras migrations; criar
+uma conta ou um exercício manual não altera a lista global.
+
+O payload de exercício aceita `catalog_exercise_id` opcional. Se informado, o backend
+valida a referência e usa o nome do catálogo para uma nova seleção; o `name` pode
+ser omitido. Se não informado, `name` é obrigatório. Uma seleção já salva preserva
+seu nome ao editar as séries, mesmo que o item global seja renomeado depois.
+
+Exemplo de treino misto:
+
+```json
+{
+  "name": "Treino A",
+  "exercises": [
+    {"catalog_exercise_id": "supino-reto-barra", "sets": [{"target_repetitions": 8, "target_weight": "60.00"}]},
+    {"name": "Minha variação", "sets": [{"target_repetitions": 10}]}
+  ]
+}
+```
+
+- `backend/app/models/catalog.py`: catálogo global e índices de filtro.
+- `backend/app/api/catalog.py`: busca autenticada, paginação e filtros.
+- `backend/alembic/versions/0005_shared_exercise_catalog.py`: tabela, 46 itens iniciais
+  e referência opcional no exercício planejado. Exercícios existentes não são publicados.
+- `frontend/src/components/ExerciseCatalog.tsx`: seletor com busca e estados de erro.
+- `backend/tests/test_catalog.py`, `frontend/tests/catalog.spec.ts` e
+  `frontend/integration/catalog.spec.ts`: validação da funcionalidade.
+
+### Execução
+
+```bash
+docker compose up --build -d --wait
+docker compose exec backend alembic current
+# 0005 (head)
+docker compose exec backend alembic check
+```
+
+A aplicação da migration instala o catálogo para todas as contas, incluindo as
+criadas posteriormente. Não é necessário importar os exercícios no cadastro.
+
+
+### Validação executada na Sprint 7
+
+- 89 testes de backend aprovados, incluindo acesso por contas atuais e futuras,
+  busca sem acentos, paginação, filtros, privacidade, referências inválidas e snapshots.
+- 34 testes de interface aprovados nos perfis desktop e mobile, incluindo seleção,
+  exercício manual, erro de catálogo, personalização e responsividade.
+- 4 testes de integração aprovados com PostgreSQL e frontend estático: catálogo
+  compartilhado com nova conta, treino misto e regressão do fluxo completo do MVP.
+- Build local e Docker aprovados; schema em `0005 (head)` sem divergências.
+- Atualização, reversão e reaplicação da migration validadas em banco descartável
+  com treino antigo: exercício e série preservados, catálogo com exatamente 46 itens.
+- Ambiente local atualizado com os itens globais. A stack e as contas temporárias
+  de testes foram removidas, preservando os dados de desenvolvimento.

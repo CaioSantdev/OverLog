@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 SetType = Literal["warmup", "feeder", "work", "backoff", "failure"]
@@ -19,8 +19,16 @@ class PlannedSetInput(BaseModel):
 class ExerciseInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | None = None
-    name: Name
+    catalog_exercise_id: Annotated[str, StringConstraints(min_length=1, max_length=80)] | None = None
+    name: Name | None = None
     sets: list[PlannedSetInput] = Field(default_factory=list, max_length=30)
+
+
+    @model_validator(mode="after")
+    def require_manual_name(self):
+        if self.catalog_exercise_id is None and self.name is None:
+            raise ValueError("Informe o nome ou escolha um exercício do catálogo.")
+        return self
 
 
 class WorkoutInput(BaseModel):
@@ -38,6 +46,7 @@ class PlannedSetPublic(PlannedSetInput):
 class ExercisePublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
+    catalog_exercise_id: str | None = None
     name: str
     position: int
     sets: list[PlannedSetPublic]

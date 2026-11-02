@@ -9,6 +9,8 @@ from app.models.workout import WorkoutTemplate, TemplateExercise, PlannedSet  # 
 
 from app.models.session import WorkoutSession, SessionExercise, PerformedSet  # noqa: F401
 
+from app.models.catalog import CatalogExercise  # noqa: F401
+
 target_metadata = Base.metadata
 
 

@@ -37,6 +37,7 @@ class TemplateExercise(Base):
     __tablename__ = "template_exercises"
     __table_args__ = (CheckConstraint("position >= 0", name="ck_exercise_position"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
+    catalog_exercise_id: Mapped[str | None] = mapped_column(ForeignKey("exercise_catalog.id", name="fk_template_exercise_catalog", ondelete="SET NULL"), nullable=True, index=True)
     workout_template_id: Mapped[str] = mapped_column(ForeignKey("workout_templates.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(100))
     position: Mapped[int]

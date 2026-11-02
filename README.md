@@ -1543,3 +1543,23 @@ no celular. O mesmo domínio atende a interface e `/api` pelo proxy do Vite;
 o hostname configurado é permitido no Vite e sua origem HTTPS é aceita pela API.
 Se o ngrok fornecer outro domínio, atualize `NGROK_HOST` e recrie os serviços.
 Deixe essa variável vazia quando não estiver usando o túnel.
+
+## Cargas e repetições ao iniciar uma sessão
+
+Novas sessões recuperam a carga e as repetições das séries concluídas na última
+sessão finalizada do mesmo plano e da mesma conta. Todas as séries começam
+desmarcadas e os valores continuam editáveis para registrar a progressão atual.
+
+O exercício é associado pelo nome (ignorando caixa e espaços repetidos), e as
+séries pelo tipo e ordem dentro daquele tipo. Reordenar exercícios ou intercalar
+um aquecimento não desloca as cargas das séries de trabalho. Exercícios com
+nomes duplicados não são preenchidos pelo histórico para evitar associações
+ambíguas. Séries novas, não concluídas ou com zero repetições na sessão anterior
+usam os valores definidos no plano; carga zero concluída é recuperada normalmente.
+
+Sessões descartadas não servem como referência. Retomar uma sessão preserva suas
+edições, e iniciar outra não modifica o plano nem o histórico. Sem histórico
+compatível, o comportamento permanece igual ao primeiro treino.
+
+Validação desta funcionalidade: 97 testes de backend e quatro testes de integração
+aprovados, incluindo recuperação da carga no navegador desktop e celular.

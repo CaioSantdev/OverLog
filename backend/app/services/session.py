@@ -1,3 +1,5 @@
+from collections import Counter
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -6,7 +8,7 @@ from app.models.session import PerformedSet, SessionExercise, WorkoutSession
 from app.models.user import User
 from app.models.workout import now
 from app.schemas.session import SessionUpdate
-from app.services.progression import build_report
+from app.services.progression import build_report, meaningful, normalize_name
 from app.services.workout import get_workout
 
 
@@ -35,11 +37,32 @@ def start_session(db: Session, user: User, workout_id: str):
         raise HTTPException(409, "Retome ou descarte o treino em andamento antes de iniciar outro.")
     if not any(exercise.sets for exercise in workout.exercises):
         raise HTTPException(422, "Adicione pelo menos uma série ao treino antes de iniciar.")
-    session = WorkoutSession(user_id=user.id, workout_template_id=workout.id, name_snapshot=workout.name,
-        exercises=[SessionExercise(name_snapshot=exercise.name, position=exercise.position,
-            sets=[PerformedSet(position=item.position, set_type=item.set_type, weight=item.target_weight,
-                repetitions=item.target_repetitions, is_completed=False) for item in exercise.sets])
-            for exercise in workout.exercises])
+    previous = db.scalar(session_query(user.id).where(
+        WorkoutSession.workout_template_id == workout.id,
+        WorkoutSession.status == "completed",
+    ).order_by(WorkoutSession.finished_at.desc(), WorkoutSession.id.desc()).limit(1))
+    current_counts = Counter(normalize_name(ex.name) for ex in workout.exercises)
+    previous_counts = Counter(normalize_name(ex.name_snapshot) for ex in previous.exercises) if previous else Counter()
+    baselines = {normalize_name(ex.name_snapshot): ex for ex in previous.exercises
+                 if previous_counts[normalize_name(ex.name_snapshot)] == 1} if previous else {}
+    exercises = []
+    for exercise in workout.exercises:
+        name = normalize_name(exercise.name)
+        baseline = baselines.get(name) if current_counts[name] == 1 else None
+        ordinals = Counter()
+        sets = []
+        for item in exercise.sets:
+            ordinal = ordinals[item.set_type]
+            ordinals[item.set_type] += 1
+            candidates = [prior for prior in baseline.sets if prior.set_type == item.set_type] if baseline else []
+            prior = candidates[ordinal] if ordinal < len(candidates) else None
+            reuse = prior is not None and meaningful(prior)
+            sets.append(PerformedSet(position=item.position, set_type=item.set_type,
+                weight=prior.weight if reuse else item.target_weight,
+                repetitions=prior.repetitions if reuse else item.target_repetitions, is_completed=False))
+        exercises.append(SessionExercise(name_snapshot=exercise.name, position=exercise.position, sets=sets))
+    session = WorkoutSession(user_id=user.id, workout_template_id=workout.id,
+                             name_snapshot=workout.name, exercises=exercises)
     db.add(session)
     db.commit()
     return get_session(db, user.id, session.id)

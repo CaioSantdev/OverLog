@@ -22,6 +22,7 @@ test('fluxo real do cadastro à progressão, com isolamento de outra conta', asy
   await page.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Iniciar descanso', exact: true })).toBeVisible();
   const sessionURL = page.url();
+  await page.getByLabel('Carga (kg)', { exact: true }).fill('59');
   await page.getByRole('button', { name: 'Iniciar descanso', exact: true }).click();
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Salvar andamento', exact: true }).first().click();
@@ -36,6 +37,9 @@ test('fluxo real do cadastro à progressão, com isolamento de outra conta', asy
   await expect(page.getByText('Primeiro registro deste exercício', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Voltar aos meus treinos', exact: true }).click();
   await page.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click();
+  await expect(page.getByLabel('Carga (kg)', { exact: true })).toHaveValue('59.00');
+  await expect(page.getByLabel('Repetições', { exact: true })).toHaveValue('8');
+  await expect(page.getByRole('checkbox')).not.toBeChecked();
   await page.getByLabel('Carga (kg)', { exact: true }).fill('62,5');
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Finalizar treino ↗', exact: true }).first().click();
@@ -48,7 +52,7 @@ test('fluxo real do cadastro à progressão, com isolamento de outra conta', asy
   const dashboard = await dashboardResponse.json();
   expect(dashboard.completed_sessions).toBe(2);
   expect(dashboard.progressions).toBe(1);
-  expect(dashboard.weeks.reduce((sum: number, week: { volume: string }) => sum + Number(week.volume), 0)).toBe(980);
+  expect(dashboard.weeks.reduce((sum: number, week: { volume: string }) => sum + Number(week.volume), 0)).toBe(972);
   await expect(page.locator('.dashboard-stats')).toContainText('Progressões');
   await page.getByRole('link', { name: 'Treinos concluídos ↗', exact: true }).click();
   await expect(page.locator('.workout-card')).toHaveCount(2);

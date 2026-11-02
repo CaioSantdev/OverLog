@@ -1607,3 +1607,14 @@ de manutenção separado. Nenhuma porta dos containers é publicada no host.
 O passo a passo e os scripts SQL estão em [docs/DEPLOY_CLOUD.md](docs/DEPLOY_CLOUD.md).
 Os recursos remotos, domínio e credenciais precisam ser configurados antes da
 publicação. A preparação não altera nem importa os dados do banco local.
+
+## Frontend separado no Cloudflare Pages
+
+Para frontend no Pages e somente a API na Oracle, consulte
+[docs/DEPLOY_PAGES_ORACLE.md](docs/DEPLOY_PAGES_ORACLE.md). A Function em
+`frontend/functions/api/[[path]].js` encaminha `/api/*` à variável de runtime
+`API_ORIGIN` do Pages, preservando cookies na mesma origem. O backend precisa
+de hostname HTTPS permanente; Quick Tunnel continua limitado a testes.
+
+Valide com `npm run test:proxy --prefix frontend`. O build e os testes locais não
+substituem configurar o runtime e testar o login na URL pública.

@@ -12,11 +12,17 @@ from test_workouts import editable, sign_in
 @pytest.fixture
 def catalog(client):
     c, db = client
-    path = Path(__file__).resolve().parents[1] / 'alembic/versions/0005_shared_exercise_catalog.py'
-    spec = importlib.util.spec_from_file_location('catalog_seed', path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    db.add_all(CatalogExercise(**item) for item in module.EXERCISES)
+    directory = Path(__file__).resolve().parents[1] / 'alembic/versions'
+    modules = []
+    for filename in ('0005_shared_exercise_catalog.py', '0006_expand_exercise_catalog.py'):
+        spec = importlib.util.spec_from_file_location(filename[:-3], directory / filename)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        modules.append(module)
+    records = {item['id']: dict(item) for item in modules[0].EXERCISES + modules[1].NEW_EXERCISES}
+    for item in modules[1].SEARCH_UPDATES:
+        records[item['id']]['search_text'] = item['search_text']
+    db.add_all(CatalogExercise(**item) for item in records.values())
     db.commit()
     return c, db
 
@@ -27,11 +33,11 @@ def test_catalog_shared_with_existing_and_future_accounts(catalog):
     sign_in(c)
     first = c.get('/api/exercise-catalog?limit=50')
     assert first.status_code == 200
-    assert first.json()['total'] == 46
-    assert len(first.json()['items']) == 46
+    assert first.json()['total'] == 94
+    assert len(first.json()['items']) == 50
     sign_in(c, 'future@example.com')
     assert c.get('/api/exercise-catalog?limit=50').json() == first.json()
-    assert db.scalar(select(func.count()).select_from(CatalogExercise)) == 46
+    assert db.scalar(select(func.count()).select_from(CatalogExercise)) == 94
     assert c.post('/api/exercise-catalog', json={'name': 'Não pode publicar'}).status_code == 405
     assert c.put('/api/exercise-catalog/supino-reto-barra', json={'name': 'Alterado'}).status_code in (404, 405)
 
@@ -40,7 +46,7 @@ def test_search_accent_filters_pagination_and_literal_wildcards(catalog):
     c, _ = catalog
     sign_in(c)
     result = c.get('/api/exercise-catalog?q=BICEPS').json()
-    assert result['total'] == 5
+    assert result['total'] == 9
     assert all(item['muscle_group'] == 'Bíceps' for item in result['items'])
     result = c.get('/api/exercise-catalog', params={'q': '  supino  ', 'muscle_group': 'Peito', 'equipment': 'Halteres'}).json()
     assert result['total'] == 2
@@ -48,8 +54,9 @@ def test_search_accent_filters_pagination_and_literal_wildcards(catalog):
     first = c.get('/api/exercise-catalog?limit=20').json()
     second = c.get('/api/exercise-catalog?limit=20&offset=20').json()
     last = c.get('/api/exercise-catalog?limit=20&offset=40').json()
-    assert [len(page['items']) for page in (first, second, last)] == [20, 20, 6]
-    assert len({item['id'] for page in (first, second, last) for item in page['items']}) == 46
+    assert [len(page['items']) for page in (first, second, last)] == [20, 20, 20]
+    all_pages = [c.get(f'/api/exercise-catalog?limit=20&offset={offset}').json() for offset in range(0, 100, 20)]
+    assert len({item['id'] for page in all_pages for item in page['items']}) == 94
     for query in ('%', '_', "' OR 1=1"):
         assert c.get('/api/exercise-catalog', params={'q': query}).json()['total'] == 0
     filters = c.get('/api/exercise-catalog/filters').json()
@@ -72,7 +79,7 @@ def test_catalog_selection_and_private_manual_exercise(catalog):
     sign_in(c, 'second@example.com')
     assert c.get('/api/exercise-catalog?q=particular').json()['total'] == 0
     assert c.get('/api/workouts/' + workout['id']).status_code == 404
-    assert c.get('/api/exercise-catalog?q=supino').json()['total'] == 4
+    assert c.get('/api/exercise-catalog?q=supino').json()['total'] == 10
 
 
 @pytest.mark.parametrize('exercise', [
@@ -129,3 +136,34 @@ def test_query_bounds(catalog, query):
     c, _ = catalog
     sign_in(c)
     assert c.get('/api/exercise-catalog?' + query).status_code == 422
+
+
+
+def test_all_new_names_and_aliases_are_searchable(catalog):
+    c, _ = catalog
+    sign_in(c)
+    path = Path(__file__).resolve().parents[1] / 'alembic/versions/0006_expand_exercise_catalog.py'
+    spec = importlib.util.spec_from_file_location('expanded_catalog', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for item in module.NEW_EXERCISES:
+        result = c.get('/api/exercise-catalog', params={'q': item['name'], 'limit': 50}).json()
+        assert item['id'] in {match['id'] for match in result['items']}, item['name']
+    for item in module.SEARCH_UPDATES:
+        result = c.get('/api/exercise-catalog', params={'q': item['alias'], 'limit': 50}).json()
+        assert item['id'] in {match['id'] for match in result['items']}, item['alias']
+
+
+def test_specific_variants_and_new_muscle_groups(catalog):
+    c, db = catalog
+    sign_in(c)
+    for group, identifier in [('Antebraços', 'flexao-punho-barra'), ('Adutores', 'cadeira-adutora'),
+                              ('Lombar', 'extensao-lombar-banco-romano'), ('Trapézio', 'encolhimento-barra')]:
+        result = c.get('/api/exercise-catalog', params={'muscle_group': group}).json()
+        assert identifier in {item['id'] for item in result['items']}
+    for identifiers in [('stiff-barra', 'terra-romeno-barra'),
+                        ('cadeira-extensora-bilateral', 'cadeira-extensora-unilateral'),
+                        ('rosca-direta-barra-reta', 'rosca-direta-barra-w')]:
+        assert all(db.get(CatalogExercise, identifier) is not None for identifier in identifiers)
+    assert c.get('/api/exercise-catalog', params={'q': 'serrote'}).json()['items'][0]['id'] == 'remada-unilateral-halter'
+    assert c.get('/api/exercise-catalog', params={'q': 'Leg Press 45°'}).json()['items'][0]['id'] in ('leg-press-45', 'panturrilha-leg-press-45')

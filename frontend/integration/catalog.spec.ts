@@ -23,7 +23,9 @@ test('catálogo real está disponível para uma conta nova e permite treino mist
   expect(workouts[0].exercises[0].catalog_exercise_id).toBe('supino-reto-barra');
   expect(workouts[0].exercises[1].catalog_exercise_id).toBeNull();
   const firstCatalog = await (await page.request.get('/api/exercise-catalog?limit=50')).json();
-  expect(firstCatalog.total).toBe(46);
+  expect(firstCatalog.total).toBe(94);
+  const secondPage = await (await page.request.get('/api/exercise-catalog?limit=50&offset=50')).json();
+  expect(firstCatalog.items.length + secondPage.items.length).toBe(94);
   await page.getByRole('link', { name: 'Editar treino ↗', exact: true }).click();
   await expect(page.getByLabel('Nome do exercício', { exact: true }).first()).toHaveValue('Supino reto com barra');
   await expect(page.getByText('Do catálogo compartilhado.', { exact: false })).toBeVisible();
@@ -32,6 +34,7 @@ test('catálogo real está disponível para uma conta nova e permite treino mist
     const registration = await other.request.post('/api/auth/register', { headers: { 'X-Requested-With': 'OverLog' }, data: { name: 'Conta futura', email: `future-${randomUUID()}@example.com`, password: randomUUID() } });
     expect(registration.status()).toBe(201);
     expect(await (await other.request.get('/api/exercise-catalog?limit=50')).json()).toEqual(firstCatalog);
+    expect(await (await other.request.get('/api/exercise-catalog?limit=50&offset=50')).json()).toEqual(secondPage);
     expect((await other.request.get(`/api/workouts/${workouts[0].id}`)).status()).toBe(404);
     expect((await (await other.request.get('/api/exercise-catalog', { params: { q: privateName } })).json()).total).toBe(0);
   } finally { await other.close(); }

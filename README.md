@@ -1481,3 +1481,24 @@ Editor, execução e resumos exibem apenas a sigla colorida: **A** (Aquecimento,
 amarelo), **Fe** (Feeder, azul), **W** (Working Set, verde), **B** (BackOff, roxo)
 e **F** (Falha, coral). O nome completo aparece ao abrir o seletor. Os controles
 nativos e os nomes acessíveis são preservados; os valores da API permanecem iguais.
+
+
+## Ampliação e revisão do catálogo
+
+A lista de 72 nomes fornecida foi comparada com o catálogo: 11 já existiam, 13
+foram aproveitados como nomes equivalentes e 48 variações foram adicionadas.
+O catálogo compartilhado passa a ter **94 exercícios**, sem excluir os anteriores.
+A migration `0006` preserva IDs e nomes antigos e acrescenta sinônimos à busca.
+
+Os grupos novos são Antebraços, Adutores, Lombar e Trapézio. Variações de pegada,
+ângulo, máquina e lateralidade são mantidas separadas. Equipamento não informado
+no agachamento búlgaro fica como “Não especificado”, evitando assumir uma variação.
+
+A conferência de todos os nomes, grupos, equipamentos e decisões de redundância
+está em [docs/CATALOGO_REVISAO.md](docs/CATALOGO_REVISAO.md).
+
+
+Validação da ampliação: 91 testes de backend e quatro testes de integração real
+aprovados nos perfis desktop/mobile. A migration atual é `0006`; o teste de
+atualização, reaplicação e reversão usa banco descartável. A lista ampliada mantém
+o acesso compartilhado para contas atuais e futuras, sem publicar exercícios manuais.

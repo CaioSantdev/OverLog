@@ -489,3 +489,14 @@ footer { max-width: 1404px; display: flex; align-items: center; justify-content:
   .live-indicator { display: none; }
 }
 @media(prefers-reduced-motion:no-preference) { a,button { transition: background-color .16s,border-color .16s,color .16s; } }
+
+/* Shared brand mark: barbell and diagonal progress stripes. */
+.brand { align-items: center; gap: 7px; }
+.brand-symbol { display: inline-block; width: 28px; height: 28px; vertical-align: -3px; margin-right: 5px; }
+@media(max-width:600px) {
+  .brand-symbol { width: 23px; height: 23px; margin-right: 4px; }
+  .header-tools { gap: 6px; }
+}
+@media(max-width:380px) {
+  .authenticated .phase { display: none; }
+}

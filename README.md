@@ -1563,3 +1563,10 @@ compatível, o comportamento permanece igual ao primeiro treino.
 
 Validação desta funcionalidade: 97 testes de backend e quatro testes de integração
 aprovados, incluindo recuperação da carga no navegador desktop e celular.
+
+## Identidade visual
+
+Logo em preto e amarelo com halter e faixas diagonais de progressão, aplicada
+na navegação desktop e nos cabeçalhos de celular e autenticação. Arquivos
+vetoriais disponíveis em `frontend/public/logo.svg` (logo completa) e
+`frontend/public/favicon.svg` (símbolo e ícone da aba do navegador).

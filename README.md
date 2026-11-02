@@ -1618,3 +1618,10 @@ de hostname HTTPS permanente; Quick Tunnel continua limitado a testes.
 
 Valide com `npm run test:proxy --prefix frontend`. O build e os testes locais não
 substituem configurar o runtime e testar o login na URL pública.
+
+Origem HTTPS da API na Oracle: `https://overlog-api-caio.duckdns.org`.
+Caddy e liberação persistente de TCP 80/443 estão documentados em
+[docs/DEPLOY_PAGES_ORACLE.md](docs/DEPLOY_PAGES_ORACLE.md), com configurações em
+`deploy/oracle`. O endpoint `/api/health` foi validado externamente com certificado
+válido e banco conectado. A configuração `API_ORIGIN` no Pages e o fluxo completo
+de login ainda precisam ser concluídos.

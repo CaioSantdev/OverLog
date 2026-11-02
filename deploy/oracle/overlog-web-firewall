@@ -1,0 +1,6 @@
+#!/bin/sh
+# Insert only the web ingress rule; preserve SSH, Docker and every existing rule.
+set -eu
+if ! /usr/sbin/iptables -w -C INPUT -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -m comment --comment overlog-web -j ACCEPT 2>/dev/null; then
+    /usr/sbin/iptables -w -I INPUT 1 -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -m comment --comment overlog-web -j ACCEPT
+fi

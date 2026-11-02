@@ -92,3 +92,45 @@ Referências: [Pages Functions](https://developers.cloudflare.com/pages/function
 [roteamento](https://developers.cloudflare.com/pages/functions/routing/),
 [limitações de fetch em Workers](https://developers.cloudflare.com/workers/platform/known-issues/)
 e [DuckDNS](https://www.duckdns.org/about.jsp).
+
+## HTTPS instalado na Oracle — 02/11/2026
+
+Origem permanente configurada: `https://overlog-api-caio.duckdns.org`.
+O registro A aponta para `159.112.178.203`. O Caddy 2.11.7 foi instalado pelo
+repositório oficial, com certificado público e manutenção automática de TLS.
+Caddy e a regra de firewall estão habilitados no systemd. Nenhuma credencial do
+banco, chave JWT ou token DuckDNS foi inserida nestes arquivos versionados.
+
+Arquivos de referência em `deploy/oracle`:
+
+- `Caddyfile`: proxy de `/api` e `/api/*` para 127.0.0.1:8000, com cabeçalhos de
+  segurança e 404 para outros caminhos. Usa a variável API_HOSTNAME.
+- `overlog-web-firewall`: regra idempotente de INPUT liberando somente TCP 80/443;
+  não remove nem altera regras de SSH/Docker. A regra é inserida antes do REJECT
+  já existente na imagem Ubuntu da Oracle.
+- `overlog-web-firewall.service`: aplica essa regra no boot, antes do Caddy.
+
+Na VM, o Caddyfile fica em `/etc/caddy/Caddyfile` e o arquivo original foi guardado
+em `/etc/caddy/Caddyfile.before-overlog`. O drop-in
+`/etc/systemd/system/caddy.service.d/overlog.conf` define
+`Environment=API_HOSTNAME=overlog-api-caio.duckdns.org`. O helper de firewall foi
+instalado em `/usr/local/sbin/overlog-web-firewall`, modo 755, e sua unidade em
+`/etc/systemd/system/overlog-web-firewall.service`. O CA/certificado e chave privada
+HTTPS são gerenciados pelo Caddy em seu diretório privado; não os coloque no Git.
+
+Validação externa, sem ignorar certificados: `/api/health` respondeu HTTP/2 200 e
+`{"status":"ok","database":"connected"}`. HTTP redirecionou para HTTPS com 308;
+`/api/workouts` sem cookie respondeu 401. A API continuou escutando apenas em
+127.0.0.1:8000. Foram confirmados `is-active` e `is-enabled` dos dois serviços.
+Não foi feito reboot da VM nem aguardada uma renovação real do certificado.
+
+Ainda falta publicar a Function do Pages e configurar, no runtime Production,
+`API_ORIGIN=https://overlog-api-caio.duckdns.org`. A rotação de credenciais e a
+correção do SSL do banco descritas acima também continuam pendentes; a instalação
+do HTTPS externo não substitui essas etapas. O teste autenticado via Pages ainda
+não foi executado. O Quick Tunnel existente foi preservado durante a configuração.
+
+Para verificar o Caddyfile após alterações na VM, execute com a variável definida:
+`sudo env API_HOSTNAME=overlog-api-caio.duckdns.org caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`.
+Após validar, use reload do serviço. O domínio depende da conta DuckDNS e do IP da
+VM; mudança de IP exige atualizar o DNS antes de verificar o certificado novamente.

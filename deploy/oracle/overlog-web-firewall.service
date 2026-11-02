@@ -1,0 +1,12 @@
+[Unit]
+Description=Allow OverLog HTTP and HTTPS ingress
+After=network-pre.target netfilter-persistent.service
+Before=caddy.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/overlog-web-firewall
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

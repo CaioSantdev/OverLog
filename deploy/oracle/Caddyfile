@@ -1,0 +1,17 @@
+{$API_HOSTNAME} {
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
